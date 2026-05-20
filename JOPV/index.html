@@ -1,0 +1,2152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Corient Presents – Judgment of Paris V</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<script src="config.js"></script>
+
+<script src="config.js"></script>
+
+<!-- Firebase -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getDatabase, ref, set, get, onValue, update, remove }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+// ─── CONFIG (loaded from config.js) ──────────────────────
+const FIREBASE_CONFIG  = window.APP_CONFIG?.firebase  || {};
+const ANTHROPIC_API_KEY = window.APP_CONFIG?.anthropicKey || '';
+window._anthropicKey   = ANTHROPIC_API_KEY;
+// ─────────────────────────────────────────────────────────
+
+const CONFIGURED = !!(FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.includes("PASTE"));
+
+let app, db;
+
+if (CONFIGURED) {
+  try {
+    app = initializeApp(FIREBASE_CONFIG);
+    db  = getDatabase(app);
+    window._db  = db;
+    window._ref = ref;
+    window._set = set;
+    window._get = get;
+    window._onValue = onValue;
+    window._update  = update;
+    window._remove  = remove;
+    window._firebaseReady = true;
+  } catch(e) {
+    console.error("Firebase init failed:", e);
+    window._firebaseReady = false;
+  }
+} else {
+  window._firebaseReady = false;
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  if (!CONFIGURED) {
+    showScreen('screen-setup');
+  } else {
+    window._appInit();
+  }
+});
+</script>
+
+<style>
+  :root {
+    --black: #0a0a0a;
+    --silver: #c0c0c0;
+    --silver-light: #e8e8e8;
+    --silver-dark: #888;
+    --gold-accent: #b8a070;
+    --bg: #0d0d0d;
+    --surface: #161616;
+    --surface2: #1e1e1e;
+    --border: rgba(192,192,192,0.18);
+    --text: #e8e8e8;
+    --text-dim: #888;
+    --radius: 4px;
+    --sel-bg: #e8e8e8;
+    --sel-color: #0a0a0a;
+    --sel-border: #e8e8e8;
+  }
+
+  /* ── LIGHT MODE ── */
+  body.light-mode {
+    --bg: #f7f6f2; --surface: #ffffff; --surface2: #ececec;
+    --border: rgba(0,0,0,0.16); --text: #0a0a0a; --text-dim: #444;
+    --silver: #1a1a1a; --silver-light: #0a0a0a; --silver-dark: #333;
+    --gold-accent: #8a6a20;
+    --sel-bg: #0a0a0a; --sel-color: #ffffff; --sel-border: #0a0a0a;
+  }
+  body.light-mode .app-header  { background:#fff; }
+  body.light-mode .wine-tile   { box-shadow:0 1px 4px rgba(0,0,0,.08); }
+  body.light-mode .wine-tile:hover { background:#f0efeb; }
+  body.light-mode .score-card  { box-shadow:0 1px 4px rgba(0,0,0,.07); }
+  body.light-mode .player-row  { box-shadow:0 1px 3px rgba(0,0,0,.06); }
+  body.light-mode .status-bar  { background:#fff; }
+  body.light-mode .theme-toggle-bar { background:#fff; border-top-color:rgba(0,0,0,.12); }
+  body.light-mode select option { background:#fff; color:#0a0a0a; }
+  body.light-mode .tag-fr { background:rgba(0,0,120,.1); color:#0000bb; }
+  body.light-mode .tag-us { background:rgba(150,0,0,.1); color:#aa0000; }
+  body.light-mode .badge-submitted { background:rgba(0,0,0,.07); color:#333; }
+  body.light-mode .tabs { background:#fff; }
+  body.light-mode .btn-primary { background:#0a0a0a; color:#fff; }
+  body.light-mode .btn-primary:hover { background:#222; color:#fff; }
+  body.light-mode .btn-outline { color:#0a0a0a; border-color:rgba(0,0,0,.25); }
+  body.light-mode .btn-outline:hover { border-color:#0a0a0a; }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family:'Montserrat',sans-serif;
+    background:var(--bg); color:var(--text);
+    min-height:100vh; font-size:14px; font-weight:300; letter-spacing:.03em;
+  }
+
+  #confetti-canvas {
+    position:fixed; top:0; left:0; width:100%; height:100%;
+    pointer-events:none; z-index:9999; display:none;
+  }
+
+  .screen { display:none; min-height:100vh; padding-bottom:60px; }
+  .screen.active { display:flex; flex-direction:column; }
+
+  /* ── HEADER ── */
+  .app-header {
+    text-align:center; padding:40px 24px 28px;
+    border-bottom:1px solid var(--border);
+  }
+  .app-header .eyebrow {
+    font-size:10px; font-weight:500; letter-spacing:.25em;
+    text-transform:uppercase; color:var(--silver-dark); margin-bottom:10px;
+  }
+  .app-header h1 {
+    font-family:'Cormorant Garamond',serif;
+    font-size:clamp(22px,5vw,34px); font-weight:300;
+    letter-spacing:.08em; color:var(--silver-light); line-height:1.2;
+  }
+  .app-header h1 em { font-style:italic; color:var(--silver); }
+  .divider-ornament {
+    display:flex; align-items:center; justify-content:center;
+    gap:12px; margin:14px 0 0;
+  }
+  .divider-ornament span { width:40px; height:1px; background:var(--border); }
+  .divider-ornament i { width:5px; height:5px; background:var(--silver-dark); transform:rotate(45deg); }
+
+  /* ── LAYOUT ── */
+  .container { max-width:560px; margin:0 auto; padding:28px 20px; flex:1; }
+  .container.wide { max-width:780px; }
+  .scroll-body { overflow-y:auto; }
+
+  /* ── FORMS ── */
+  .form-group { margin-bottom:20px; }
+  label {
+    display:block; font-size:10px; font-weight:500;
+    letter-spacing:.2em; text-transform:uppercase;
+    color:var(--silver-dark); margin-bottom:8px;
+  }
+  input[type="text"],input[type="email"],textarea,select {
+    width:100%; background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius); padding:12px 14px; color:var(--text);
+    font-family:'Montserrat',sans-serif; font-size:13px; font-weight:300;
+    letter-spacing:.03em; outline:none; transition:border-color .2s; appearance:none;
+  }
+  input:focus,textarea:focus,select:focus { border-color:var(--silver-dark); }
+  textarea { resize:vertical; min-height:80px; }
+  select option { background:var(--surface); }
+
+  /* ── BUTTONS ── */
+  .btn {
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    padding:13px 28px; font-family:'Montserrat',sans-serif;
+    font-size:10px; font-weight:500; letter-spacing:.2em; text-transform:uppercase;
+    border:none; border-radius:var(--radius); cursor:pointer; transition:all .2s;
+  }
+  .btn-primary { background:var(--silver-light); color:#0a0a0a; border:1px solid var(--silver-light); }
+  .btn-primary:hover { background:#fff; color:#0a0a0a; border-color:#fff; }
+  .btn-outline { background:transparent; color:var(--silver); border:1px solid rgba(192,192,192,0.45); }
+  .btn-outline:hover { border-color:var(--silver-dark); color:var(--silver-light); }
+  .btn-danger  { background:#8b2020; color:#fff; border:1px solid #b03030; }
+  .btn-danger:hover { background:#a02020; border-color:#c04040; }
+  .btn-full    { width:100%; }
+  .btn:disabled { opacity:.4; cursor:not-allowed; }
+
+  /* ── WINE GRID ── */
+  .wine-grid {
+    display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:8px;
+  }
+  @media(max-width:420px){ .wine-grid{ grid-template-columns:repeat(3,1fr); } }
+  .wine-tile {
+    aspect-ratio:1; background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius); display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:4px;
+    cursor:pointer; transition:all .2s; position:relative; overflow:hidden;
+  }
+  .wine-tile:hover { border-color:var(--silver-dark); background:var(--surface2); }
+  .wine-tile.completed { border-color:#3a9e5f; }
+  .wine-tile.submitted-lock { opacity:.55; cursor:default; }
+  .wine-tile .tile-num {
+    font-family:'Cormorant Garamond',serif; font-size:28px;
+    font-weight:300; color:var(--silver); line-height:1;
+  }
+  .wine-tile .tile-label {
+    font-size:8px; letter-spacing:.15em; text-transform:uppercase; color:var(--text-dim);
+  }
+  .wine-tile .check-mark {
+    position:absolute; top:6px; right:6px; width:18px; height:18px;
+    background:#3a9e5f; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:10px; color:#fff; font-weight:700;
+  }
+
+  /* ── COUNTRY TOGGLE ── */
+  .country-toggle { display:flex; gap:10px; }
+  .country-btn {
+    flex:1; height:64px; background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius); color:var(--text-dim); font-family:'Montserrat',sans-serif;
+    font-size:14px; font-weight:400; letter-spacing:.06em; cursor:pointer; transition:all .15s;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .country-btn.selected {
+    background:var(--sel-bg); color:var(--sel-color); border-color:var(--sel-border); font-weight:600;
+  }
+  .country-btn:hover:not(.selected) { border-color:var(--silver-dark); color:var(--text); }
+
+  /* ── RATING ── */
+  .rating-row { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; }
+  .rating-btn {
+    width:100%; height:68px; background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius); color:var(--text-dim); font-family:'Montserrat',sans-serif;
+    font-size:20px; font-weight:400; cursor:pointer; transition:all .15s;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .rating-btn.selected {
+    background:var(--sel-bg); color:var(--sel-color); border-color:var(--sel-border); font-weight:600;
+  }
+  .rating-btn:hover:not(.selected) { border-color:var(--silver-dark); color:var(--text); }
+
+  /* ── STATUS BAR ── */
+  .status-bar {
+    padding:10px 20px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:10px; letter-spacing:.1em; color:var(--text-dim);
+  }
+  .status-dot { width:6px; height:6px; border-radius:50%; background:#4caf50; margin-right:6px; display:inline-block; }
+  .status-dot.ended { background:#f44336; }
+
+  /* ── SECTION LABELS ── */
+  .section-label {
+    font-size:9px; font-weight:500; letter-spacing:.25em; text-transform:uppercase;
+    color:var(--text-dim); margin-bottom:10px; margin-top:24px;
+  }
+  .section-label:first-of-type { margin-top:0; }
+
+  /* ── WINE PAGE HEADER ── */
+  .wine-page-header {
+    display:flex; align-items:center; gap:12px;
+    padding:24px 20px 18px; border-bottom:1px solid var(--border);
+  }
+  .back-btn {
+    background:none; border:none; cursor:pointer;
+    color:var(--silver-dark); font-size:20px; line-height:1; padding:4px 8px 4px 0;
+  }
+  .back-btn:hover { color:var(--silver); }
+  .wine-page-header h2 { font-family:'Cormorant Garamond',serif; font-size:24px; font-weight:300; color:var(--silver-light); }
+  .wine-page-header .wine-sub { font-size:10px; color:var(--text-dim); letter-spacing:.1em; }
+
+  /* ── ADMIN ── */
+  .admin-section { margin-bottom:32px; }
+  .admin-section h3 {
+    font-family:'Cormorant Garamond',serif; font-size:18px; font-weight:400;
+    color:var(--silver); margin-bottom:14px; padding-bottom:8px; border-bottom:1px solid var(--border);
+  }
+  .player-row {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 12px; border:1px solid var(--border); border-radius:var(--radius);
+    margin-bottom:6px; background:var(--surface); gap:8px; flex-wrap:wrap;
+  }
+  .player-info { flex:1; min-width:100px; }
+  .player-name { font-size:13px; color:var(--text); }
+  .player-email { font-size:10px; color:var(--text-dim); }
+  .badge {
+    font-size:9px; font-weight:500; letter-spacing:.1em;
+    padding:3px 8px; border-radius:2px; text-transform:uppercase;
+  }
+  .badge-submitted { background:rgba(192,192,192,.12); color:var(--silver-dark); }
+  .badge-pending   { background:rgba(255,165,0,.12); color:#b8860b; }
+
+  /* ── SCORE CARD ── */
+  .score-card {
+    border:1px solid var(--border); border-radius:var(--radius);
+    padding:20px; background:var(--surface); margin-bottom:16px;
+  }
+  .score-title { font-family:'Cormorant Garamond',serif; font-size:16px; color:var(--silver-dark); margin-bottom:10px; }
+  .score-value { font-family:'Cormorant Garamond',serif; font-size:44px; font-weight:300; color:var(--silver-light); line-height:1; }
+  .score-sub   { font-size:10px; color:var(--text-dim); margin-top:4px; }
+
+  .answer-row {
+    display:flex; align-items:center; padding:9px 12px;
+    border-bottom:1px solid var(--border); font-size:12px; gap:8px;
+  }
+  .answer-row:last-child { border-bottom:none; }
+  .aw-num { font-family:'Cormorant Garamond',serif; font-size:18px; color:var(--silver-dark); min-width:24px; }
+  .aw-wine { flex:1; color:var(--text); }
+  .aw-country { font-size:10px; color:var(--text-dim); }
+  .correct   { color:#4caf50 !important; }
+  .incorrect { color:#e57373 !important; }
+
+  /* ── ENDED ── */
+  .ended-hero { text-align:center; padding:48px 24px 32px; }
+  .ended-hero .trophy { font-size:48px; margin-bottom:16px; display:block; }
+  .ended-hero h2 {
+    font-family:'Cormorant Garamond',serif; font-size:28px; font-weight:300;
+    color:var(--silver-light); margin-bottom:16px; line-height:1.3;
+  }
+  .ended-hero p { font-size:13px; color:var(--silver-dark); line-height:1.7; max-width:360px; margin:0 auto 28px; }
+
+  /* ── RESULTS TABLE ── */
+  .results-table { width:100%; border-collapse:collapse; }
+  .results-table th {
+    font-size:9px; letter-spacing:.2em; text-transform:uppercase; color:var(--text-dim);
+    padding:8px 10px; text-align:left; border-bottom:1px solid var(--border);
+  }
+  .results-table td { padding:10px; font-size:12px; border-bottom:1px solid rgba(192,192,192,.08); vertical-align:middle; }
+  .rank-gold   { color:var(--gold-accent); font-family:'Cormorant Garamond',serif; font-size:18px; }
+  .rank-silver { color:var(--silver);      font-family:'Cormorant Garamond',serif; font-size:18px; }
+  .rank-bronze { color:#cd7f32;            font-family:'Cormorant Garamond',serif; font-size:18px; }
+
+  /* ── TABS ── */
+  .tabs { display:flex; border-bottom:1px solid var(--border); margin-bottom:24px; }
+  .tab {
+    padding:10px 16px; font-size:10px; letter-spacing:.15em; text-transform:uppercase;
+    cursor:pointer; color:var(--text-dim); border-bottom:2px solid transparent; margin-bottom:-1px;
+  }
+  .tab.active { color:var(--silver-light); border-bottom-color:var(--silver); }
+
+  /* ── QR PAGE ── */
+  .qr-wrap { text-align:center; padding:28px 20px; }
+  .qr-wrap h2 { font-family:'Cormorant Garamond',serif; font-size:22px; font-weight:300; color:var(--silver); margin-bottom:6px; }
+  .qr-wrap p { font-size:11px; color:var(--text-dim); margin-bottom:20px; }
+  #qr-player,#qr-admin { display:inline-block; padding:14px; background:#fff; border-radius:var(--radius); margin-bottom:14px; }
+  .url-display {
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:10px 14px; font-size:11px; color:var(--text-dim); word-break:break-all; margin-bottom:10px;
+  }
+
+  /* ── MISC ── */
+  .mt-8  { margin-top:8px;  }
+  .mt-16 { margin-top:16px; }
+  .mt-24 { margin-top:24px; }
+  .mb-8  { margin-bottom:8px; }
+  .flex-row { display:flex; gap:10px; }
+  .flex-row .btn { flex:1; }
+  .small-note { font-size:11px; color:var(--text-dim); line-height:1.6; }
+  .text-center { text-align:center; }
+  .separator { height:1px; background:var(--border); margin:24px 0; }
+  .tag { display:inline-block; padding:2px 8px; border-radius:2px; font-size:9px; letter-spacing:.1em; text-transform:uppercase; margin-left:6px; }
+  .tag-fr { background:rgba(0,0,100,.3); color:#8888ff; }
+  .tag-us { background:rgba(100,0,0,.3); color:#ff8888; }
+  .winner-badge { display:inline-flex; align-items:center; gap:4px; background:rgba(184,160,112,.15); color:var(--gold-accent); border:1px solid rgba(184,160,112,.3); border-radius:2px; padding:4px 10px; font-size:10px; letter-spacing:.1em; }
+
+  /* ── WINE INPUT ── */
+  .wine-input-row { display:flex; gap:8px; align-items:center; margin-bottom:6px; }
+  .wine-num { font-family:'Cormorant Garamond',serif; font-size:20px; color:var(--silver-dark); min-width:24px; text-align:right; }
+
+  /* ── NAME EDIT ── */
+  .name-edit-row { display:flex; align-items:center; gap:8px; }
+  .name-display {
+    font-family:'Cormorant Garamond',serif; font-size:17px; color:var(--silver);
+    cursor:pointer; border-bottom:1px dashed transparent; transition:border-color .2s; padding-bottom:1px;
+  }
+  .name-display:hover { border-bottom-color:var(--silver-dark); }
+  .name-edit-input {
+    font-family:'Cormorant Garamond',serif; font-size:17px; color:var(--silver);
+    background:transparent; border:none; border-bottom:1px solid var(--silver-dark);
+    outline:none; width:130px; padding:0 0 1px;
+  }
+  .name-save-btn {
+    font-size:9px; letter-spacing:.1em; text-transform:uppercase; padding:4px 10px;
+    background:transparent; border:1px solid var(--border); border-radius:var(--radius);
+    color:var(--text-dim); cursor:pointer;
+  }
+  .name-save-btn:hover { color:var(--text); border-color:var(--silver-dark); }
+
+  /* ── THEME TOGGLE ── */
+  .theme-toggle-bar {
+    position:fixed; bottom:0; left:0; right:0;
+    display:flex; align-items:center; justify-content:center;
+    padding:10px 24px; background:var(--bg); border-top:1px solid var(--border);
+    z-index:200; gap:12px;
+  }
+  .theme-toggle-label { font-size:9px; letter-spacing:.22em; text-transform:uppercase; color:var(--text-dim); min-width:68px; }
+  .toggle-switch { position:relative; width:48px; height:26px; cursor:pointer; }
+  .toggle-switch input { opacity:0; width:0; height:0; position:absolute; }
+  .toggle-track {
+    position:absolute; inset:0; background:var(--surface2);
+    border:1px solid var(--border); border-radius:13px; transition:all .2s;
+  }
+  .toggle-thumb {
+    position:absolute; top:3px; left:3px; width:18px; height:18px;
+    background:var(--silver-dark); border-radius:50%;
+    transition:transform .22s cubic-bezier(.4,0,.2,1), background .2s;
+  }
+  .toggle-switch input:checked ~ .toggle-thumb { transform:translateX(22px); }
+  body.light-mode .toggle-track { background:#e0e0e0; border-color:#bbb; }
+  body.light-mode .toggle-thumb { background:#0a0a0a; }
+  .theme-icon { font-size:15px; line-height:1; }
+
+  /* ── LOADER ── */
+  .loader {
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    min-height:60vh; gap:16px;
+  }
+  .spinner {
+    width:32px; height:32px; border:2px solid var(--border);
+    border-top-color:var(--silver-dark); border-radius:50%;
+    animation:spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+  .fade-in { animation:fadeIn .3s ease; }
+
+  /* ── SETUP SCREEN ── */
+  .setup-card {
+    border:1px solid var(--border); border-radius:6px;
+    padding:24px; background:var(--surface); margin-bottom:16px;
+  }
+  .setup-card h3 { font-family:'Cormorant Garamond',serif; font-size:18px; color:var(--silver); margin-bottom:8px; }
+  .code-block {
+    background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius);
+    padding:10px 14px; font-family:monospace; font-size:11px; color:var(--silver-dark);
+    white-space:pre-wrap; word-break:break-all; margin:10px 0;
+  }
+  .step-num {
+    display:inline-flex; align-items:center; justify-content:center;
+    width:22px; height:22px; border-radius:50%; background:var(--surface2);
+    border:1px solid var(--border); font-size:10px; font-weight:600;
+    color:var(--silver); margin-right:8px; flex-shrink:0;
+  }
+  .step-row { display:flex; align-items:flex-start; gap:0; margin-bottom:12px; font-size:12px; color:var(--text-dim); line-height:1.6; }
+</style>
+</head>
+<body>
+
+<canvas id="confetti-canvas"></canvas>
+
+<!-- ══════════ SCREEN: FIREBASE SETUP ══════════ -->
+<div id="screen-setup" class="screen">
+  <div class="app-header">
+    <div class="eyebrow">One-time Setup</div>
+    <h1><em>Judgment of Paris</em> V</h1>
+    <div class="divider-ornament"><span></span><i></i><span></span></div>
+  </div>
+  <div class="container" style="padding-top:28px;">
+    <p class="small-note mb-8" style="margin-bottom:16px;">
+      To enable multiplayer (everyone on their own phone), you need a free Firebase database.
+      This takes about 5 minutes. Follow the steps below, then paste your config into the HTML file.
+    </p>
+
+    <div class="setup-card">
+      <h3>Step-by-Step Firebase Setup</h3>
+      <div class="step-row"><span class="step-num">1</span>Go to <strong style="color:var(--text)">console.firebase.google.com</strong> and sign in with a Google account.</div>
+      <div class="step-row"><span class="step-num">2</span>Click <strong style="color:var(--text)">"Create a project"</strong>. Give it any name (e.g. <em>judgment-of-paris</em>). Disable Google Analytics if prompted.</div>
+      <div class="step-row"><span class="step-num">3</span>In the left sidebar, click <strong style="color:var(--text)">Build → Realtime Database</strong>. Click <strong style="color:var(--text)">"Create database"</strong>. Choose <strong style="color:var(--text)">"Start in test mode"</strong>. Click Enable.</div>
+      <div class="step-row"><span class="step-num">4</span>In the left sidebar, click the ⚙️ gear → <strong style="color:var(--text)">Project settings</strong>. Scroll to "Your apps" and click the <strong style="color:var(--text)">&lt;/&gt; Web</strong> icon. Register the app (any nickname). Copy the <code style="color:var(--silver)">firebaseConfig</code> object.</div>
+      <div class="step-row"><span class="step-num">5</span>Open <strong style="color:var(--text)">judgment-of-paris-v2.html</strong> in a text editor. Find the section that says <code style="color:var(--silver)">PASTE YOUR FIREBASE CONFIG BELOW</code> near the top and replace the placeholder values with your config values.</div>
+      <div class="step-row"><span class="step-num">6</span>Save the file and re-upload it to Netlify (drag-and-drop the file onto your existing Netlify site dashboard).</div>
+    </div>
+
+    <div class="setup-card">
+      <h3>Security Note</h3>
+      <p class="small-note">The database starts in "test mode" which allows open read/write — fine for a one-evening event. After the event, go to Firebase → Realtime Database → Rules and set both <code style="color:var(--silver)">.read</code> and <code style="color:var(--silver)">.write</code> to <code style="color:var(--silver)">false</code> to lock it down.</p>
+    </div>
+
+    <div class="setup-card">
+      <h3>Where to find your config</h3>
+      <p class="small-note mb-8">Your config will look like this — replace all the placeholder values in the HTML:</p>
+      <div class="code-block">const firebaseConfig = {
+  apiKey: "AIzaSy...",
+  authDomain: "myproject.firebaseapp.com",
+  databaseURL: "https://myproject-default-rtdb.firebaseio.com",
+  projectId: "myproject",
+  storageBucket: "myproject.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123:web:abc123"
+};</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SCREEN: LOADING ══════════ -->
+<div id="screen-loading" class="screen">
+  <div class="loader">
+    <div class="spinner"></div>
+    <p class="small-note">Connecting…</p>
+  </div>
+</div>
+
+<!-- ══════════ SCREEN: QR LANDING ══════════ -->
+<div id="screen-qr" class="screen">
+  <div class="app-header">
+    <div class="eyebrow">Corient Presents</div>
+    <h1><em>Judgment of Paris</em> V</h1>
+    <div class="divider-ornament"><span></span><i></i><span></span></div>
+  </div>
+  <div class="container text-center" style="padding-top:32px;">
+    <p class="small-note mb-8" style="margin-bottom:16px;">Player QR Code — display or print for guests</p>
+    <div id="qr-player" style="margin:0 auto 14px;"></div>
+    <div class="url-display" id="player-url-display">—</div>
+    <button class="btn btn-outline mt-8" onclick="copyLink('player')">Copy Player Link</button>
+    <div class="separator"></div>
+    <p class="small-note mb-8">Administrator access</p>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+      <button class="btn btn-outline" onclick="showAdminQR()">Show Admin QR</button>
+      <button class="btn btn-outline" onclick="location.hash='#admin';initAdminPanel()">Open Admin Panel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SCREEN: ADMIN QR ══════════ -->
+<div id="screen-admin-qr" class="screen">
+  <div class="app-header">
+    <div class="eyebrow">Administrator</div>
+    <h1>Admin Access</h1>
+    <div class="divider-ornament"><span></span><i></i><span></span></div>
+  </div>
+  <div class="container text-center" style="padding-top:28px;">
+    <div id="qr-admin" style="margin:0 auto 14px;"></div>
+    <p class="small-note" style="margin-bottom:12px;">Keep this QR code confidential</p>
+    <div class="url-display" id="admin-url-display">—</div>
+    <div class="flex-row mt-16" style="max-width:340px;margin:16px auto 0;">
+      <button class="btn btn-outline" onclick="copyLink('admin')">Copy Link</button>
+      <button class="btn btn-outline" onclick="showScreen('screen-qr')">Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SCREEN: REGISTER ══════════ -->
+<div id="screen-register" class="screen">
+  <div class="app-header">
+    <div class="eyebrow">Corient Presents</div>
+    <h1><em>Judgment of Paris</em> V</h1>
+    <div class="divider-ornament"><span></span><i></i><span></span></div>
+  </div>
+  <div class="container" style="padding-top:36px;">
+    <div class="form-group">
+      <label>Your Name</label>
+      <input type="text" id="reg-name" placeholder="Enter your name" autocomplete="name">
+    </div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="reg-email" placeholder="your@email.com (optional)" autocomplete="email">
+      <p style="font-size:10px;color:var(--text-dim);margin-top:6px;line-height:1.5;">Optional — only used to send you results after the game ends.</p>
+    </div>
+    <button class="btn btn-primary btn-full mt-16" onclick="registerPlayer()">Begin Tasting</button>
+    <p class="small-note text-center mt-16">Your progress saves automatically across all devices.</p>
+  </div>
+</div>
+
+<!-- ══════════ SCREEN: WINE GRID ══════════ -->
+<div id="screen-grid" class="screen">
+  <div class="app-header" style="padding:24px 20px 18px;">
+    <div class="eyebrow">Corient Presents</div>
+    <h1 style="font-size:20px;"><em>Judgment of Paris</em> V</h1>
+  </div>
+  <div class="status-bar">
+    <div><span class="status-dot" id="status-dot"></span><span id="status-label">Game in progress</span></div>
+    <div class="name-edit-row" id="name-edit-area">
+      <span class="name-display" id="name-display" onclick="startNameEdit()" title="Click to edit name"></span>
+      <input type="text" class="name-edit-input" id="name-edit-input" style="display:none;" onkeydown="if(event.key==='Enter')saveNameEdit()">
+      <button class="name-save-btn" id="name-save-btn" style="display:none;" onclick="saveNameEdit()">Save</button>
+    </div>
+  </div>
+  <div class="container scroll-body">
+    <p class="section-label" style="margin-top:20px;">Select a Wine to Evaluate</p>
+    <div class="wine-grid" id="wine-grid-tiles"></div>
+    <div class="mt-24" id="submit-area">
+      <button class="btn btn-primary btn-full" onclick="submitForm()" id="submit-btn">Submit My Evaluations</button>
+      <p class="small-note text-center mt-8" id="submit-note"></p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SCREEN: WINE DETAIL ══════════ -->
+<div id="screen-wine" class="screen">
+  <div class="wine-page-header">
+    <button class="back-btn" onclick="backToGrid()">&#8592;</button>
+    <div>
+      <h2 id="wine-page-title">Wine #1</h2>
+      <div class="wine-sub" id="wine-page-sub">Complete your evaluation below</div>
+    </div>
+  </div>
+  <div class="container scroll-body" style="padding-top:20px;">
+    <p class="section-label">Country of Origin</p>
+    <div class="country-toggle">
+      <button class="country-btn" id="btn-france" onclick="setCountry('France')">🇫🇷 France</button>
+      <button class="country-btn" id="btn-usa"    onclick="setCountry('USA')">🇺🇸 United States</button>
+    </div>
+
+    <p class="section-label">Wine Name</p>
+    <select id="wine-name-select">
+      <option value="">— Select wine name —</option>
+    </select>
+
+    <p class="section-label">Rating</p>
+    <p style="font-size:10px;color:var(--text-dim);margin-bottom:10px;margin-top:-6px;letter-spacing:.03em;font-style:italic;">1 for eww &nbsp;·&nbsp; 10 for ooh la la</p>
+    <div class="rating-row" id="rating-row"></div>
+
+    <p class="section-label">Tasting Notes</p>
+    <textarea id="wine-notes" placeholder="Aromas, palate, finish…"></textarea>
+
+    <div class="flex-row mt-24">
+      <button class="btn btn-outline" onclick="backToGrid()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveWine()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SCREEN: GAME ENDED (player) ══════════ -->
+<div id="screen-ended" class="screen">
+  <div class="ended-hero fade-in">
+    <span class="trophy">🍷</span>
+    <h2>The Game Has Ended</h2>
+    <p>Please continue to enjoy wine and look for an announcement of the winner.</p>
+    <button class="btn btn-primary" onclick="viewMyScore()">View My Score &amp; Results</button>
+  </div>
+</div>
+
+<!-- ══════════ SCREEN: MY SCORE ══════════ -->
+<div id="screen-my-score" class="screen">
+  <div class="wine-page-header">
+    <button class="back-btn" onclick="showScreen('screen-ended')">&#8592;</button>
+    <div>
+      <h2>My Results</h2>
+      <div class="wine-sub" id="score-player-name"></div>
+    </div>
+  </div>
+  <div class="container wide scroll-body" id="score-content" style="padding-top:24px;"></div>
+</div>
+
+<!-- ══════════ SCREEN: ADMIN PASSWORD ══════════ -->
+<div id="screen-admin-login" class="screen">
+  <div class="app-header">
+    <div class="eyebrow">Administrator</div>
+    <h1><em>Judgment of Paris</em> V</h1>
+    <div class="divider-ornament"><span></span><i></i><span></span></div>
+  </div>
+  <div class="container" style="padding-top:48px;max-width:380px;">
+    <div class="form-group">
+      <label>Admin Password</label>
+      <input type="password" id="admin-password-input" placeholder="Enter password"
+        onkeydown="if(event.key==='Enter')checkAdminPassword()">
+    </div>
+    <p class="small-note" id="admin-pw-error" style="color:#e57373;display:none;margin-bottom:12px;">Incorrect password. Please try again.</p>
+    <button class="btn btn-primary btn-full" onclick="checkAdminPassword()">Enter Admin Panel</button>
+  </div>
+</div>
+
+<!-- ══════════ SCREEN: ADMIN ══════════ -->
+<div id="screen-admin" class="screen">
+  <div class="app-header" style="padding:24px 20px 18px;">
+    <div class="eyebrow">Administrator</div>
+    <h1 style="font-size:20px;"><em>Judgment of Paris</em> V</h1>
+  </div>
+  <div class="status-bar">
+    <div><span class="status-dot" id="admin-status-dot"></span><span id="admin-status-label">Game in progress</span></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-outline" id="reset-game-btn" onclick="resetGame()" style="padding:6px 14px;font-size:9px;display:none;">↺ Reset Game</button>
+      <button class="btn btn-danger"  id="end-game-btn"   onclick="endGame()"   style="padding:6px 14px;font-size:9px;">End Game</button>
+    </div>
+  </div>
+
+  <!-- Big action buttons -->
+  <div style="display:flex;gap:10px;padding:16px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap;">
+    <button class="btn btn-primary" style="flex:1;padding:16px 8px;font-size:10px;min-width:120px;" onclick="switchAdminTab('players')">
+      👥 View Participants
+    </button>
+    <button class="btn btn-outline" style="flex:1;padding:16px 8px;font-size:10px;min-width:120px;" onclick="switchAdminTab('setup')">
+      🗝 Add Answer Key
+    </button>
+    <button class="btn btn-outline" style="flex:1;padding:16px 8px;font-size:10px;min-width:120px;" onclick="switchAdminTab('scan')">
+      📷 Scan Paper Sheet
+    </button>
+  </div>
+
+  <div class="container wide scroll-body">
+    <div class="tabs" id="admin-tabs" style="margin-top:8px;overflow-x:auto;flex-wrap:nowrap;">
+      <div class="tab active" onclick="switchAdminTab('players')">Players</div>
+      <div class="tab" onclick="switchAdminTab('setup')">Setup</div>
+      <div class="tab" onclick="switchAdminTab('results')">Results</div>
+      <div class="tab" onclick="switchAdminTab('qrcodes')">QR Codes</div>
+      <div class="tab" onclick="switchAdminTab('invite')">Add Players</div>
+      <div class="tab" onclick="switchAdminTab('scan')">📷 Scan</div>
+    </div>
+    <div id="admin-tab-players">
+      <div class="admin-section">
+        <h3>Registered Players</h3>
+        <div id="admin-player-list"><p class="small-note">Loading…</p></div>
+      </div>
+    </div>
+    <div id="admin-tab-setup" style="display:none;">
+      <div class="admin-section">
+        <h3>Wine List (for Dropdown)</h3>
+        <p class="small-note mb-8">Enter the 12 wine names players will see in the dropdown.</p>
+        <div id="wine-name-inputs"></div>
+        <button class="btn btn-outline mt-16" onclick="saveWineList()">Save Wine List</button>
+      </div>
+      <div class="separator"></div>
+      <div class="admin-section">
+        <h3>Answer Key</h3>
+        <p class="small-note mb-8">For each numbered wine, set the correct country and name.</p>
+        <div id="answer-key-inputs"></div>
+        <button class="btn btn-outline mt-16" onclick="saveAnswerKey()">Save Answer Key</button>
+      </div>
+    </div>
+    <div id="admin-tab-results" style="display:none;">
+      <div id="admin-results-content"><p class="small-note">End the game to reveal full results.</p></div>
+    </div>
+
+    <!-- QR CODES TAB -->
+    <div id="admin-tab-qrcodes" style="display:none;">
+      <div class="admin-section">
+        <h3>Player QR Code</h3>
+        <p class="small-note mb-8">Share or print this for guests to scan and join.</p>
+        <div style="text-align:center;padding:16px 0;">
+          <div id="admin-qr-player-wrap" style="display:inline-block;background:#fff;padding:16px;border-radius:4px;border:1px solid var(--border);cursor:pointer;" onclick="downloadQR('player')" title="Click to download">
+            <div id="admin-qr-player-canvas"></div>
+          </div>
+          <p class="small-note mt-8">Click QR code to download as image</p>
+          <div class="url-display mt-8" id="admin-player-url" style="text-align:left;"></div>
+          <div style="display:flex;gap:10px;justify-content:center;margin-top:12px;flex-wrap:wrap;">
+            <button class="btn btn-outline" onclick="copyLink('player')">Copy Player Link</button>
+            <button class="btn btn-outline" onclick="downloadQR('player')">Download QR</button>
+            <button class="btn btn-outline" onclick="printQR('player')">Print QR</button>
+          </div>
+        </div>
+      </div>
+      <div class="separator"></div>
+      <div class="admin-section">
+        <h3>Admin QR Code</h3>
+        <p class="small-note mb-8" style="color:#e57373;">Keep this private — it grants admin access.</p>
+        <div style="text-align:center;padding:16px 0;">
+          <div id="admin-qr-admin-wrap" style="display:inline-block;background:#fff;padding:16px;border-radius:4px;border:1px solid var(--border);cursor:pointer;" onclick="downloadQR('admin')" title="Click to download">
+            <div id="admin-qr-admin-canvas"></div>
+          </div>
+          <p class="small-note mt-8">Click QR code to download as image</p>
+          <div class="url-display mt-8" id="admin-admin-url" style="text-align:left;"></div>
+          <div style="display:flex;gap:10px;justify-content:center;margin-top:12px;flex-wrap:wrap;">
+            <button class="btn btn-outline" onclick="copyLink('admin')">Copy Admin Link</button>
+            <button class="btn btn-outline" onclick="downloadQR('admin')">Download QR</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADD PLAYERS / INVITE TAB -->
+    <div id="admin-tab-invite" style="display:none;">
+      <div class="admin-section">
+        <h3>Invite Players by Email</h3>
+        <p class="small-note mb-8">Enter an email address and click Send Invite. This opens your email app pre-filled with the invitation.</p>
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+          <div style="flex:1;min-width:200px;">
+            <label>Email Address</label>
+            <input type="email" id="invite-email" placeholder="guest@example.com"
+              onkeydown="if(event.key==='Enter')sendInvite()">
+          </div>
+          <button class="btn btn-primary" style="margin-bottom:0;" onclick="sendInvite()">Send Invite</button>
+        </div>
+        <div class="separator"></div>
+        <h3>Bulk Invite</h3>
+        <p class="small-note mb-8">Add multiple emails, one per line, and send them all at once.</p>
+        <label>Email Addresses</label>
+        <textarea id="bulk-invite-emails" placeholder="alice@example.com&#10;bob@example.com&#10;carol@example.com" style="min-height:100px;"></textarea>
+        <button class="btn btn-outline mt-8" onclick="sendBulkInvite()">Open All in Email App</button>
+        <div class="separator"></div>
+        <div class="admin-section" style="margin-bottom:0;">
+          <h3>Share Link Manually</h3>
+          <p class="small-note mb-8">Copy the player link and share it via any channel.</p>
+          <div class="url-display" id="invite-player-url"></div>
+          <button class="btn btn-outline mt-8" onclick="copyLink('player')">Copy Link</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCAN PAPER SHEET TAB -->
+    <div id="admin-tab-scan" style="display:none;">
+      <div class="admin-section">
+        <h3>Scan a Paper Scoresheet</h3>
+        <p class="small-note mb-8">Take a photo of a completed paper scoresheet. AI will read the player's name, country selections, wine IDs, and ratings — then add them to the leaderboard automatically.</p>
+        <p style="font-size:10px;color:#b8a070;margin-bottom:16px;line-height:1.5;">⚠ Make sure the Wine List and Answer Key are saved before scanning — they are needed to match and score the sheet.</p>
+
+        <div id="scan-drop-zone"
+          style="border:2px dashed var(--border);border-radius:6px;padding:32px 20px;text-align:center;cursor:pointer;transition:border-color .2s;margin-bottom:16px;"
+          onclick="document.getElementById('scan-file-input').click()"
+          ondragover="event.preventDefault();this.style.borderColor='var(--silver-dark)'"
+          ondragleave="this.style.borderColor='var(--border)'"
+          ondrop="handleScanDrop(event)">
+          <div style="font-size:36px;margin-bottom:10px;">📷</div>
+          <p style="font-size:13px;color:var(--text);margin-bottom:4px;font-weight:500;">Tap to take a photo or choose an image</p>
+          <p style="font-size:10px;color:var(--text-dim);">Photo of a completed paper scoresheet</p>
+        </div>
+        <input type="file" id="scan-file-input" accept="image/*" capture="environment" style="display:none;" onchange="handleScanFile(event)">
+
+        <div id="scan-preview-wrap" style="display:none;margin-bottom:16px;text-align:center;">
+          <img id="scan-preview-img" style="max-width:100%;max-height:320px;border-radius:4px;border:1px solid var(--border);">
+          <br>
+          <button class="btn btn-outline mt-8" onclick="clearScan()" style="font-size:9px;padding:6px 14px;">✕ Clear</button>
+        </div>
+
+        <button class="btn btn-primary btn-full" id="scan-submit-btn" onclick="submitScan()" style="display:none;">
+          ✦ Analyse &amp; Grade Sheet
+        </button>
+
+        <div id="scan-status" style="margin-top:16px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ THEME TOGGLE ══════════ -->
+<div class="theme-toggle-bar">
+  <span class="theme-icon">🌙</span>
+  <label class="toggle-switch" title="Toggle light/dark mode">
+    <input type="checkbox" id="theme-checkbox" onchange="toggleTheme()">
+    <div class="toggle-track"></div>
+    <div class="toggle-thumb"></div>
+  </label>
+  <span class="theme-icon">☀️</span>
+  <span class="theme-toggle-label" id="theme-label">Dark Mode</span>
+</div>
+
+<!-- ══════════ SUBMIT MODAL ══════════ -->
+<div id="submit-modal" style="display:none;position:fixed;inset:0;z-index:500;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);backdrop-filter:blur(3px);">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:32px 28px;max-width:340px;width:90%;margin:24px;text-align:center;">
+    <div style="font-size:28px;margin-bottom:14px;">🍷</div>
+    <h3 style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:400;color:var(--silver-light);margin-bottom:12px;line-height:1.3;">Not all wines reviewed</h3>
+    <p style="font-size:12px;color:var(--text-dim);line-height:1.7;margin-bottom:8px;">You've evaluated <strong id="submit-modal-count" style="color:var(--text);">0</strong> of 12 wines.</p>
+    <p style="font-size:12px;color:var(--text-dim);line-height:1.7;margin-bottom:24px;">Are you sure you want to submit? You won't be able to make changes after.</p>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-outline" style="flex:1;" onclick="hideSubmitModal()">Cancel</button>
+      <button class="btn btn-primary" style="flex:1;" onclick="doSubmit()">Submit Anyway</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     MAIN SCRIPT
+══════════════════════════════════════════════════════════ -->
+<script>
+// ─── HELPERS ─────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (el) el.classList.add('active');
+}
+
+function getMode() {
+  const h = location.hash;
+  if (h === '#admin')    return 'admin';
+  if (h === '#admin-qr') return 'admin-qr';
+  if (h === '#qr')       return 'qr';
+  return 'player';
+}
+
+function buildURL(mode) {
+  const base = location.href.split('#')[0];
+  if (mode === 'admin')    return base + '#admin';
+  if (mode === 'admin-qr') return base + '#admin-qr';
+  return base;
+}
+
+function copyLink(type) {
+  const url = buildURL(type === 'admin' ? 'admin' : 'player');
+  navigator.clipboard.writeText(url).then(() => showToast('Link copied!'));
+}
+
+function showToast(msg) {
+  let t = document.getElementById('toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'toast';
+    t.style.cssText = 'position:fixed;bottom:72px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:8px 18px;border-radius:4px;font-size:11px;letter-spacing:.1em;z-index:9999;transition:opacity .3s;';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.style.opacity = '0', 2200);
+}
+
+// ─── LOCAL PLAYER ID ─────────────────────────────────────
+const PLAYER_KEY = 'jop5_player_id';
+function getMyId()    { return localStorage.getItem(PLAYER_KEY); }
+function setMyId(id)  { localStorage.setItem(PLAYER_KEY, id); }
+function makeId()     { return 'p_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+// ─── FIREBASE WRAPPERS ───────────────────────────────────
+function dbRef(path)          { return window._ref(window._db, path); }
+async function dbGet(path)    { const s = await window._get(dbRef(path)); return s.val(); }
+async function dbSet(path, v) { await window._set(dbRef(path), v); }
+async function dbUpdate(path, v) { await window._update(dbRef(path), v); }
+function dbListen(path, cb)   { return window._onValue(dbRef(path), snap => cb(snap.val())); }
+
+// ─── QR CODES ────────────────────────────────────────────
+let _qrPlayerDone = false, _qrAdminDone = false;
+function generateQRCodes() {
+  const playerURL = buildURL('player');
+  const adminURL  = buildURL('admin');
+  document.getElementById('player-url-display').textContent = playerURL;
+  document.getElementById('admin-url-display').textContent  = adminURL;
+  if (window.QRCode) {
+    if (!_qrPlayerDone) {
+      new QRCode(document.getElementById('qr-player'), { text:playerURL, width:180, height:180, colorDark:'#0a0a0a', colorLight:'#ffffff', correctLevel:QRCode.CorrectLevel.M });
+      _qrPlayerDone = true;
+    }
+    if (!_qrAdminDone) {
+      new QRCode(document.getElementById('qr-admin'),  { text:adminURL,  width:180, height:180, colorDark:'#0a0a0a', colorLight:'#ffffff', correctLevel:QRCode.CorrectLevel.M });
+      _qrAdminDone = true;
+    }
+  }
+}
+function showAdminQR() { generateQRCodes(); showScreen('screen-admin-qr'); }
+
+// ─── THEME ───────────────────────────────────────────────
+function toggleTheme() {
+  const isLight = document.getElementById('theme-checkbox').checked;
+  document.body.classList.toggle('light-mode', isLight);
+  document.getElementById('theme-label').textContent = isLight ? 'Light Mode' : 'Dark Mode';
+  localStorage.setItem('jop5_theme', isLight ? 'light' : 'dark');
+}
+function initTheme() {
+  const saved = localStorage.getItem('jop5_theme');
+  // Default to light mode if no preference saved yet
+  const isLight = saved ? saved === 'light' : true;
+  if (isLight) {
+    document.body.classList.add('light-mode');
+    document.getElementById('theme-checkbox').checked = true;
+    document.getElementById('theme-label').textContent = 'Light Mode';
+  } else {
+    document.body.classList.remove('light-mode');
+    document.getElementById('theme-checkbox').checked = false;
+    document.getElementById('theme-label').textContent = 'Dark Mode';
+  }
+}
+
+// ─── RATING BUTTONS ──────────────────────────────────────
+function buildRatingButtons() {
+  const row = document.getElementById('rating-row');
+  row.innerHTML = '';
+  for (let i = 1; i <= 10; i++) {
+    const b = document.createElement('button');
+    b.className = 'rating-btn'; b.dataset.val = i; b.textContent = i;
+    b.onclick = () => {
+      document.querySelectorAll('.rating-btn').forEach(x => x.classList.remove('selected'));
+      b.classList.add('selected');
+    };
+    row.appendChild(b);
+  }
+}
+
+// ─── APP INIT ────────────────────────────────────────────
+window._appInit = async function() {
+  initTheme();
+  buildRatingButtons();
+
+  const mode = getMode();
+
+  if (mode === 'qr') { generateQRCodes(); showScreen('screen-qr'); return; }
+  if (mode === 'admin') { initAdminPanel(); return; }
+  if (mode === 'admin-qr') { generateQRCodes(); showScreen('screen-admin-qr'); return; }
+
+  // Player flow
+  showScreen('screen-loading');
+
+  try {
+    const gameState = await dbGet('game');
+    const gameEnded = gameState && gameState.ended;
+
+    const myId = getMyId();
+    if (myId) {
+      const me = await dbGet('players/' + myId);
+      if (me) {
+        if (gameEnded) { showEndedScreen(); return; }
+        showGameGrid(me, gameEnded);
+        listenForGameEnd();
+        return;
+      }
+    }
+
+    if (gameEnded) { showEndedScreen(); return; }
+    showScreen('screen-register');
+  } catch(e) {
+    console.error(e);
+    showScreen('screen-register');
+  }
+};
+
+// ─── LISTEN FOR GAME END ─────────────────────────────────
+let _gameEndListener = null;
+function listenForGameEnd() {
+  if (_gameEndListener) return;
+  _gameEndListener = dbListen('game/ended', (val) => {
+    if (val === true) {
+      const cur = document.querySelector('.screen.active');
+      if (cur && cur.id !== 'screen-ended' && cur.id !== 'screen-my-score' && cur.id !== 'screen-admin' && cur.id !== 'screen-setup') {
+        showEndedScreen();
+      }
+    }
+  });
+}
+
+// ─── REGISTER ────────────────────────────────────────────
+async function registerPlayer() {
+  const name  = document.getElementById('reg-name').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  if (!name) { showToast('Please enter your name.'); return; }
+
+  showScreen('screen-loading');
+  try {
+    let id = getMyId() || makeId();
+    setMyId(id);
+    const player = { id, name, email: email||'', wines:{}, submitted:false, registeredAt: Date.now() };
+    await dbSet('players/' + id, player);
+    showGameGrid(player, false);
+    listenForGameEnd();
+  } catch(e) {
+    console.error(e); showToast('Connection error — please try again.');
+    showScreen('screen-register');
+  }
+}
+
+// ─── GAME GRID ───────────────────────────────────────────
+let _currentPlayer = null;
+let _playerListener = null;
+
+async function showGameGrid(playerData, gameEnded) {
+  if (playerData) _currentPlayer = playerData;
+  if (!_currentPlayer) {
+    const myId = getMyId();
+    if (myId) _currentPlayer = await dbGet('players/' + myId);
+  }
+  if (!_currentPlayer) { showScreen('screen-register'); return; }
+
+  // Name display
+  document.getElementById('name-display').textContent = _currentPlayer.name;
+
+  // Status
+  const ended = gameEnded !== undefined ? gameEnded : (await dbGet('game/ended') === true);
+  const dot = document.getElementById('status-dot');
+  dot.className = 'status-dot' + (ended ? ' ended' : '');
+  document.getElementById('status-label').textContent = ended ? 'Game has ended' : 'Game in progress';
+
+  buildGrid(_currentPlayer, ended);
+  showScreen('screen-grid');
+
+  // Live-sync player data
+  if (!_playerListener) {
+    _playerListener = dbListen('players/' + _currentPlayer.id, (data) => {
+      if (data) { _currentPlayer = data; buildGrid(data, ended); }
+    });
+  }
+}
+
+function buildGrid(player, ended) {
+  const grid = document.getElementById('wine-grid-tiles');
+  grid.innerHTML = '';
+  for (let i = 1; i <= 12; i++) {
+    const w = (player.wines || {})[i] || {};
+    const done = !!(w.country && w.name && w.rating);
+    const tile = document.createElement('div');
+    tile.className = 'wine-tile' + (done ? ' completed' : '') + (player.submitted ? ' submitted-lock' : '');
+    tile.innerHTML = `
+      <div class="tile-num">${i}</div>
+      <div class="tile-label">Wine</div>
+      ${done ? '<div class="check-mark">✓</div>' : ''}
+    `;
+    if (!player.submitted && !ended) tile.onclick = () => openWine(i);
+    else if (!player.submitted && ended) tile.style.cursor = 'default';
+    grid.appendChild(tile);
+  }
+
+  const submitBtn  = document.getElementById('submit-btn');
+  const submitNote = document.getElementById('submit-note');
+  const doneCount  = Array.from({length:12},(_,i)=>i+1).filter(i => {
+    const w = (player.wines||{})[i]||{}; return w.country&&w.name&&w.rating;
+  }).length;
+
+  if (player.submitted) {
+    submitBtn.textContent = '✓ Submitted'; submitBtn.disabled = true;
+    submitNote.textContent = 'Your evaluations have been submitted.';
+    let unsubBtn = document.getElementById('unsubmit-btn');
+    if (!unsubBtn) {
+      unsubBtn = document.createElement('button');
+      unsubBtn.id = 'unsubmit-btn';
+      unsubBtn.className = 'btn btn-outline btn-full';
+      unsubBtn.style.marginTop = '10px';
+      unsubBtn.textContent = '✎  Edit My Responses';
+      unsubBtn.onclick = unsubmitSelf;
+      document.getElementById('submit-area').appendChild(unsubBtn);
+    }
+    unsubBtn.style.display = 'block';
+  } else if (ended) {
+    submitBtn.textContent = 'Game Has Ended'; submitBtn.disabled = true;
+    submitNote.textContent = 'The game has ended. No more submissions.';
+    const unsubBtn = document.getElementById('unsubmit-btn');
+    if (unsubBtn) unsubBtn.style.display = 'none';
+  } else {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Submit My Evaluations';
+    submitNote.textContent = doneCount === 12
+      ? 'All 12 wines evaluated — ready to submit.'
+      : `${doneCount} / 12 wines evaluated. You may still submit.`;
+    const unsubBtn = document.getElementById('unsubmit-btn');
+    if (unsubBtn) unsubBtn.style.display = 'none';
+  }
+}
+
+// ─── PLAYER SELF-UNSUBMIT ────────────────────────────────
+async function unsubmitSelf() {
+  if (!confirm('This will let you edit your responses again. Continue?')) return;
+  const myId = getMyId();
+  if (!myId) return;
+  await dbUpdate('players/' + myId, { submitted: false });
+  if (_currentPlayer) _currentPlayer.submitted = false;
+  showToast('Responses unlocked — you can now edit.');
+  showGameGrid(_currentPlayer);
+}
+window.unsubmitSelf = unsubmitSelf;
+
+// ─── HASH-CHANGE FALLBACK (fixes #admin not routing on some browsers) ────
+window.addEventListener('hashchange', () => {
+  const mode = getMode();
+  if (mode === 'admin' && window._firebaseReady) { initAdminPanel(); }
+  else if (mode === 'qr') { generateQRCodes(); showScreen('screen-qr'); }
+});
+function startNameEdit() {
+  const disp  = document.getElementById('name-display');
+  const input = document.getElementById('name-edit-input');
+  const btn   = document.getElementById('name-save-btn');
+  input.value = disp.textContent;
+  disp.style.display  = 'none';
+  input.style.display = 'inline-block';
+  btn.style.display   = 'inline-block';
+  input.focus(); input.select();
+}
+
+async function saveNameEdit() {
+  const input = document.getElementById('name-edit-input');
+  const name  = input.value.trim();
+  if (!name) { showToast('Name cannot be empty.'); return; }
+  const myId = getMyId();
+  if (!myId) return;
+  await dbUpdate('players/' + myId, { name });
+  _currentPlayer.name = name;
+  document.getElementById('name-display').textContent = name;
+  document.getElementById('name-display').style.display = 'inline-block';
+  input.style.display = 'none';
+  document.getElementById('name-save-btn').style.display = 'none';
+  showToast('Name updated!');
+}
+
+// ─── WINE DETAIL ─────────────────────────────────────────
+let currentWineNum = null;
+
+async function openWine(num) {
+  currentWineNum = num;
+  const myId = getMyId();
+  const player = await dbGet('players/' + myId);
+  _currentPlayer = player;
+  const w = (player.wines || {})[num] || {};
+
+  document.getElementById('wine-page-title').textContent = `Wine #${num}`;
+
+  document.getElementById('btn-france').classList.toggle('selected', w.country === 'France');
+  document.getElementById('btn-usa').classList.toggle('selected',    w.country === 'USA');
+
+  const sel = document.getElementById('wine-name-select');
+  sel.innerHTML = '<option value="">— Select wine name —</option>';
+  const wineList = (await dbGet('game/wineList')) || [];
+  (wineList.length ? wineList : Array.from({length:12},(_,i)=>`Wine ${i+1}`)).forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name; opt.textContent = name;
+    if (w.name === name) opt.selected = true;
+    sel.appendChild(opt);
+  });
+
+  document.querySelectorAll('.rating-btn').forEach(b => {
+    b.classList.toggle('selected', parseInt(b.dataset.val) === w.rating);
+  });
+  document.getElementById('wine-notes').value = w.notes || '';
+  showScreen('screen-wine');
+}
+
+function setCountry(c) {
+  document.getElementById('btn-france').classList.toggle('selected', c === 'France');
+  document.getElementById('btn-usa').classList.toggle('selected', c === 'USA');
+}
+
+async function saveWine() {
+  const country  = document.getElementById('btn-france').classList.contains('selected') ? 'France'
+                 : document.getElementById('btn-usa').classList.contains('selected')    ? 'USA' : null;
+  const name     = document.getElementById('wine-name-select').value;
+  const ratingEl = document.querySelector('.rating-btn.selected');
+  const rating   = ratingEl ? parseInt(ratingEl.dataset.val) : null;
+  const notes    = document.getElementById('wine-notes').value.trim();
+
+  const myId = getMyId();
+  await dbUpdate('players/' + myId + '/wines/' + currentWineNum, { country: country||null, name: name||null, rating: rating||null, notes });
+  if (_currentPlayer) {
+    if (!_currentPlayer.wines) _currentPlayer.wines = {};
+    _currentPlayer.wines[currentWineNum] = { country, name, rating, notes };
+  }
+  backToGrid();
+}
+
+function backToGrid() { showGameGrid(_currentPlayer); }
+
+// ─── SUBMIT ──────────────────────────────────────────────
+function submitForm() {
+  const wines = (_currentPlayer && _currentPlayer.wines) || {};
+  const doneCount = Array.from({length:12},(_,i)=>i+1).filter(i => {
+    const w = wines[i]||{}; return w.country&&w.name&&w.rating;
+  }).length;
+  if (doneCount < 12) { showSubmitModal(doneCount); }
+  else { doSubmit(); }
+}
+
+async function doSubmit() {
+  const myId = getMyId();
+  await dbUpdate('players/' + myId, { submitted: true });
+  if (_currentPlayer) _currentPlayer.submitted = true;
+  hideSubmitModal();
+  showGameGrid(_currentPlayer);
+}
+
+function showSubmitModal(n) {
+  document.getElementById('submit-modal-count').textContent = n;
+  document.getElementById('submit-modal').style.display = 'flex';
+}
+function hideSubmitModal() {
+  document.getElementById('submit-modal').style.display = 'none';
+}
+
+// ─── GAME ENDED SCREEN ───────────────────────────────────
+function showEndedScreen() {
+  startConfetti();
+  showScreen('screen-ended');
+}
+
+async function viewMyScore() {
+  const myId  = getMyId();
+  const player = await dbGet('players/' + myId);
+  if (!player) { showToast('Player data not found.'); return; }
+  const answerKey = (await dbGet('game/answerKey')) || {};
+  document.getElementById('score-player-name').textContent = player.name;
+
+  const scores = computePlayerScore(player, answerKey);
+  const content = document.getElementById('score-content');
+
+  let html = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:24px;">
+      <div class="score-card"><div class="score-title">Your Score</div><div class="score-value">${scores.total}</div><div class="score-sub">out of 24 points</div></div>
+      <div class="score-card"><div class="score-title">Countries Correct</div><div class="score-value">${scores.countryPts}</div><div class="score-sub">out of 12</div></div>
+      <div class="score-card"><div class="score-title">Wines Matched</div><div class="score-value">${scores.namePts}</div><div class="score-sub">out of 12</div></div>
+    </div>
+    <p class="section-label">Wine-by-Wine Breakdown</p>
+    <div class="score-card" style="padding:0;overflow:hidden;">
+  `;
+  for (let i = 1; i <= 12; i++) {
+    const w   = (player.wines || {})[i] || {};
+    const ans = answerKey[i] || {};
+    const cOk = ans.country && w.country === ans.country;
+    const nOk = ans.name    && w.name    === ans.name;
+    html += `
+      <div class="answer-row">
+        <span class="aw-num">${i}</span>
+        <div style="flex:1;"><div class="aw-wine">${ans.name||'—'}</div><div class="aw-country">${ans.country||'—'}</div></div>
+        <div style="text-align:right;font-size:11px;line-height:1.8;">
+          <span class="${cOk?'correct':'incorrect'}">${w.country||'?'} ${cOk?'✓':'✗'}</span><br>
+          <span class="${nOk?'correct':'incorrect'}" style="font-size:10px;">${nOk?'Name ✓':'Name ✗'}</span>
+        </div>
+      </div>
+    `;
+  }
+  html += '</div>';
+  content.innerHTML = html;
+  showScreen('screen-my-score');
+}
+
+// ─── SCORING ─────────────────────────────────────────────
+function computePlayerScore(player, answerKey) {
+  let countryPts = 0, namePts = 0;
+  for (let i = 1; i <= 12; i++) {
+    const w = (player.wines||{})[i]||{}, ans = answerKey[i]||{};
+    if (ans.country && w.country === ans.country) countryPts++;
+    if (ans.name    && w.name    === ans.name)    namePts++;
+  }
+  return { countryPts, namePts, total: countryPts + namePts };
+}
+
+async function computeAllScores() {
+  const playersMap = (await dbGet('players')) || {};
+  const answerKey  = (await dbGet('game/answerKey')) || {};
+  const players    = Object.values(playersMap);
+
+  const playerScores = players.map(p => ({ ...p, scores: computePlayerScore(p, answerKey) }))
+    .sort((a,b) => b.scores.total - a.scores.total);
+
+  const wineRatings = {};
+  for (let i = 1; i <= 12; i++) wineRatings[i] = { sum:0, count:0 };
+  players.forEach(p => {
+    for (let i = 1; i <= 12; i++) {
+      const w = (p.wines||{})[i];
+      if (w && w.rating) { wineRatings[i].sum += w.rating; wineRatings[i].count++; }
+    }
+  });
+  const wineAvgs = Object.entries(wineRatings).map(([num,v]) => ({
+    num: parseInt(num), avg: v.count ? v.sum/v.count : 0,
+    name: (answerKey[num]||{}).name || `Wine ${num}`
+  })).sort((a,b) => b.avg - a.avg);
+
+  const countryTotals = { France:{sum:0,count:0}, USA:{sum:0,count:0} };
+  players.forEach(p => {
+    for (let i = 1; i <= 12; i++) {
+      const w = (p.wines||{})[i], ak = answerKey[i];
+      if (w && w.rating && ak && ak.country) {
+        countryTotals[ak.country].sum   += w.rating;
+        countryTotals[ak.country].count += 1;
+      }
+    }
+  });
+  const countryAvgs = Object.entries(countryTotals)
+    .map(([c,v]) => ({ country:c, avg: v.count ? (v.sum/v.count).toFixed(2) : '—' }))
+    .sort((a,b) => (parseFloat(b.avg)||0) - (parseFloat(a.avg)||0));
+
+  return { playerScores, wineAvgs, countryAvgs, answerKey };
+}
+
+// ─── ADMIN PASSWORD ──────────────────────────────────────
+const ADMIN_PASSWORD = 'BennerEnsemble';
+const ADMIN_AUTH_KEY = 'jop5_admin_auth';
+
+function checkAdminPassword() {
+  const val = document.getElementById('admin-password-input').value;
+  const err = document.getElementById('admin-pw-error');
+  if (val === ADMIN_PASSWORD) {
+    sessionStorage.setItem(ADMIN_AUTH_KEY, '1');
+    err.style.display = 'none';
+    document.getElementById('admin-password-input').value = '';
+    _launchAdminPanel();
+  } else {
+    err.style.display = 'block';
+    document.getElementById('admin-password-input').value = '';
+    document.getElementById('admin-password-input').focus();
+  }
+}
+window.checkAdminPassword = checkAdminPassword;
+
+function requireAdminAuth() {
+  if (sessionStorage.getItem(ADMIN_AUTH_KEY) === '1') {
+    _launchAdminPanel();
+  } else {
+    initTheme();
+    showScreen('screen-admin-login');
+    setTimeout(() => document.getElementById('admin-password-input').focus(), 100);
+  }
+}
+
+// ─── ADMIN ───────────────────────────────────────────────
+let _adminPlayersListener = null;
+
+async function _launchAdminPanel() {
+  initTheme();
+  buildRatingButtons();
+  showScreen('screen-admin');
+
+  const ended = await dbGet('game/ended');
+  updateAdminStatus(!!ended);
+  await buildAdminInputs();
+
+  if (!_adminPlayersListener) {
+    _adminPlayersListener = dbListen('players', (data) => {
+      renderAdminPlayerList(data || {});
+    });
+  }
+}
+
+async function initAdminPanel() {
+  requireAdminAuth();
+}
+
+function updateAdminStatus(ended) {
+  document.getElementById('admin-status-dot').className   = 'status-dot' + (ended ? ' ended' : '');
+  document.getElementById('admin-status-label').textContent = ended ? 'Game has ended' : 'Game in progress';
+  document.getElementById('end-game-btn').disabled        = ended;
+  document.getElementById('end-game-btn').textContent     = ended ? 'Game Ended' : 'End Game';
+  document.getElementById('reset-game-btn').style.display = ended ? 'inline-flex' : 'none';
+}
+
+async function resetGame() {
+  // Two-step confirmation — this is destructive
+  const choice = await showResetModal();
+  if (!choice) return;
+
+  if (choice === 'full') {
+    // Wipe everything — players, game state, answer key, wine list
+    if (!confirm('This will permanently delete ALL player data, submissions, the answer key, and the wine list. Are you absolutely sure?')) return;
+    await dbSet('players',  null);
+    await dbSet('game',     null);
+    _adminPlayersListener = null;
+    _playerListener       = null;
+    showToast('Game fully reset — all data cleared.');
+  } else {
+    // Soft reset — keep wine list & answer key, wipe players & ended flag
+    if (!confirm('This will delete all players and submissions but keep your wine list and answer key. Continue?')) return;
+    await dbSet('players',     null);
+    await dbSet('game/ended',  null);
+    _adminPlayersListener = null;
+    _playerListener       = null;
+    showToast('Game reset — players cleared, wine list kept.');
+  }
+
+  // Reset listeners and refresh panel
+  _adminPlayersListener = null;
+  await _launchAdminPanel();
+  switchAdminTab('players');
+}
+
+function showResetModal() {
+  return new Promise(resolve => {
+    document.getElementById('reset-modal').style.display = 'flex';
+    window._resetResolve = resolve;
+  });
+}
+function closeResetModal(choice) {
+  document.getElementById('reset-modal').style.display = 'none';
+  if (window._resetResolve) { window._resetResolve(choice); window._resetResolve = null; }
+}
+window.resetGame      = resetGame;
+window.closeResetModal = closeResetModal;
+
+function renderAdminPlayerList(playersMap) {
+  const div = document.getElementById('admin-player-list');
+  const players = Object.values(playersMap).sort((a,b) => (a.name||'').localeCompare(b.name||''));
+  if (!players.length) { div.innerHTML = '<p class="small-note">No players registered yet.</p>'; return; }
+  const doneCount = p => Array.from({length:12},(_,i)=>i+1).filter(i => {
+    const w = (p.wines||{})[i]||{}; return w.country&&w.name&&w.rating;
+  }).length;
+  div.innerHTML = players.map(p => `
+    <div class="player-row" style="cursor:pointer;" onclick="adminViewPlayer('${p.id}')">
+      <div class="player-info">
+        <div class="player-name">${p.name}</div>
+        ${p.email ? `<div class="player-email">${p.email}</div>` : ''}
+        <div style="font-size:9px;color:var(--text-dim);margin-top:2px;">${doneCount(p)}/12 wines evaluated</div>
+      </div>
+      <span class="badge ${p.submitted?'badge-submitted':'badge-pending'}">${p.submitted?'Submitted':'In Progress'}</span>
+      <span style="color:var(--text-dim);font-size:16px;margin-left:4px;">›</span>
+    </div>
+  `).join('');
+}
+
+async function unsubmitPlayer(id) {
+  if (!confirm('Un-submit this player\'s form?')) return;
+  await dbUpdate('players/' + id, { submitted: false });
+  showToast('Un-submitted.');
+}
+
+async function adminViewPlayer(id) {
+  const player    = await dbGet('players/' + id);
+  const answerKey = (await dbGet('game/answerKey')) || {};
+  const wineList  = (await dbGet('game/wineList'))  || [];
+  if (!player) { showToast('Player not found.'); return; }
+
+  const wines  = player.wines || {};
+  const scored = Object.keys(answerKey).length > 0;
+
+  let rows = '';
+  for (let i = 1; i <= 12; i++) {
+    const w   = wines[i] || {};
+    const ans = answerKey[i] || {};
+    const hasEntry = w.country || w.name || w.rating;
+    const cOk = scored && ans.country && w.country === ans.country;
+    const nOk = scored && ans.name    && w.name    === ans.name;
+
+    rows += `
+      <div style="display:grid;grid-template-columns:28px 1fr 1fr auto;gap:8px;align-items:start;
+        padding:10px 0;border-bottom:1px solid var(--border);font-size:12px;">
+        <span style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--silver-dark);line-height:1.2;">${i}</span>
+        <div>
+          <div style="color:var(--text);margin-bottom:2px;">${w.name || '<span style="color:var(--text-dim)">—</span>'}</div>
+          <div style="font-size:10px;color:var(--text-dim);">${w.country || '—'}${scored && w.name ? ` <span class="${nOk?'correct':'incorrect'}">${nOk?'✓':'✗'}</span>` : ''}${scored && w.country ? ` <span class="${cOk?'correct':'incorrect'}">${cOk?'✓':'✗'}</span>` : ''}</div>
+          ${w.notes ? `<div style="font-size:10px;color:var(--text-dim);margin-top:3px;font-style:italic;">"${w.notes}"</div>` : ''}
+        </div>
+        <div style="text-align:center;">
+          ${w.rating ? `<span style="font-family:'Cormorant Garamond',serif;font-size:24px;color:var(--silver);">${w.rating}</span><span style="font-size:9px;color:var(--text-dim);">/10</span>` : '<span style="color:var(--text-dim);">—</span>'}
+        </div>
+        <div style="text-align:right;">
+          ${hasEntry ? '<span style="color:#3a9e5f;font-size:14px;">✓</span>' : '<span style="color:var(--border);font-size:14px;">○</span>'}
+        </div>
+      </div>`;
+  }
+
+  const doneCount = Array.from({length:12},(_,i)=>i+1).filter(i => {
+    const w = wines[i]||{}; return w.country&&w.name&&w.rating;
+  }).length;
+
+  document.getElementById('player-detail-title').textContent   = player.name;
+  document.getElementById('player-detail-sub').textContent     =
+    `${player.email || 'No email'} · ${doneCount}/12 wines · ${player.submitted ? 'Submitted' : 'In Progress'}`;
+  document.getElementById('player-detail-rows').innerHTML      = rows;
+  document.getElementById('player-detail-unsubmit').style.display = player.submitted ? 'inline-flex' : 'none';
+  document.getElementById('player-detail-unsubmit').onclick    = async () => {
+    if (!confirm(`Un-submit ${player.name}'s form?`)) return;
+    await dbUpdate('players/' + id, { submitted: false });
+    showToast('Un-submitted.');
+    closePlayerDetail();
+  };
+  document.getElementById('player-detail-delete').onclick = () => deletePlayer(id, player.name);
+  document.getElementById('player-detail-modal').style.display = 'flex';
+}
+
+async function deletePlayer(id, name) {
+  if (!confirm(`Permanently delete ${name}? This cannot be undone.`)) return;
+  await dbSet('players/' + id, null);
+  closePlayerDetail();
+  showToast(`${name} has been removed.`);
+}
+window.deletePlayer = deletePlayer;
+
+function closePlayerDetail() {
+  document.getElementById('player-detail-modal').style.display = 'none';
+}
+window.adminViewPlayer  = adminViewPlayer;
+window.closePlayerDetail = closePlayerDetail;
+
+async function buildAdminInputs() {
+  const wineList  = (await dbGet('game/wineList'))  || [];
+  const answerKey = (await dbGet('game/answerKey')) || {};
+
+  const wineInputDiv = document.getElementById('wine-name-inputs');
+  wineInputDiv.innerHTML = '';
+  for (let i = 1; i <= 12; i++) {
+    const row = document.createElement('div');
+    row.className = 'wine-input-row';
+    row.innerHTML = `<span class="wine-num">${i}</span><input type="text" id="wname_${i}" placeholder="Wine name" value="${wineList[i-1]||''}">`;
+    wineInputDiv.appendChild(row);
+  }
+
+  const akDiv = document.getElementById('answer-key-inputs');
+  akDiv.innerHTML = '';
+  for (let i = 1; i <= 12; i++) {
+    const ak   = answerKey[i] || {};
+    const opts = wineList.map(w => `<option value="${w}" ${ak.name===w?'selected':''}>${w}</option>`).join('');
+    const row  = document.createElement('div');
+    row.style.cssText = 'margin-bottom:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;';
+    row.innerHTML = `
+      <span style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--silver-dark);min-width:24px;text-align:right;">${i}</span>
+      <div class="country-toggle" style="flex:0 0 auto;">
+        <button class="country-btn ${ak.country==='France'?'selected':''}" style="height:44px;font-size:12px;" data-ak-row="${i}" data-ak-country="France" onclick="setAKCountry(${i},'France')">🇫🇷 FR</button>
+        <button class="country-btn ${ak.country==='USA'?'selected':''}"    style="height:44px;font-size:12px;" data-ak-row="${i}" data-ak-country="USA"    onclick="setAKCountry(${i},'USA')">🇺🇸 US</button>
+      </div>
+      <select id="ak_name_${i}" style="flex:1;min-width:140px;">
+        <option value="">— Select —</option>${opts}
+      </select>
+    `;
+    akDiv.appendChild(row);
+  }
+}
+
+async function setAKCountry(num, country) {
+  // Update Firebase
+  const ak = (await dbGet('game/answerKey/' + num)) || {};
+  ak.country = country;
+  await dbSet('game/answerKey/' + num, ak);
+
+  // Update only the two buttons for this row — no DOM rebuild
+  const akDiv = document.getElementById('answer-key-inputs');
+  const btns = akDiv.querySelectorAll(`button[data-ak-row="${num}"]`);
+  btns.forEach(b => b.classList.toggle('selected', b.dataset.akCountry === country));
+}
+window.setAKCountry = setAKCountry;
+window.unsubmitPlayer = unsubmitPlayer;
+
+async function saveWineList() {
+  const list = [];
+  for (let i = 1; i <= 12; i++) list.push((document.getElementById(`wname_${i}`)?.value||'').trim());
+  await dbSet('game/wineList', list);
+  showToast('Wine list saved!');
+  await buildAdminInputs();
+}
+
+async function saveAnswerKey() {
+  const ak = {};
+  for (let i = 1; i <= 12; i++) {
+    const nameEl = document.getElementById(`ak_name_${i}`);
+    const existing = (await dbGet('game/answerKey/' + i)) || {};
+    ak[i] = { ...existing, name: nameEl ? nameEl.value : '' };
+  }
+  await dbSet('game/answerKey', ak);
+  showToast('Answer key saved!');
+}
+
+async function endGame() {
+  if (!confirm('End the game? All players will see the results screen. This cannot be undone.')) return;
+  await dbSet('game/ended', true);
+  updateAdminStatus(true);
+  showToast('Game ended.');
+  renderAdminResults();
+}
+
+async function renderAdminResults() {
+  const div = document.getElementById('admin-results-content');
+  div.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+  const { playerScores, wineAvgs, countryAvgs, answerKey } = await computeAllScores();
+
+  const cwHTML = countryAvgs.map((c,i) => `
+    <div class="player-row">
+      <div class="player-info"><div class="player-name">${c.country==='France'?'🇫🇷':'🇺🇸'} ${c.country}</div></div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--silver);">${c.avg}</div>
+      ${i===0?'<span class="winner-badge">🏆 Winner</span>':''}
+    </div>`).join('');
+
+  const bwHTML = wineAvgs.slice(0,5).map((w,i) => {
+    const ak = answerKey[w.num]||{};
+    const ct = ak.country==='France'?'<span class="tag tag-fr">FR</span>':ak.country==='USA'?'<span class="tag tag-us">US</span>':'';
+    return `<div class="player-row">
+      <div class="player-info"><div class="player-name">#${w.num} — ${w.name}${ct}</div></div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--silver);">${w.avg.toFixed(2)}</div>
+      ${i===0?'<span class="winner-badge">🍾 Fan Fav</span>':''}
+    </div>`;
+  }).join('');
+
+  const plHTML = `<table class="results-table"><thead><tr>
+    <th>Rank</th><th>Player</th><th>Country</th><th>Name</th><th>Total</th>
+  </tr></thead><tbody>
+    ${playerScores.map((p,i) => `<tr>
+      <td><span class="${i===0?'rank-gold':i===1?'rank-silver':i===2?'rank-bronze':''}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span></td>
+      <td>${p.name}</td><td>${p.scores.countryPts}/12</td><td>${p.scores.namePts}/12</td>
+      <td style="font-weight:500;">${p.scores.total}/24</td>
+    </tr>`).join('')}
+  </tbody></table>`;
+
+  div.innerHTML = `
+    <div class="admin-section"><h3>Country Winner</h3>${cwHTML||'<p class="small-note">No data yet.</p>'}</div>
+    <div class="admin-section"><h3>Top Bottles by Rating</h3>${bwHTML||'<p class="small-note">No data yet.</p>'}</div>
+    <div class="admin-section"><h3>Player Leaderboard</h3>${plHTML}</div>
+  `;
+}
+
+function switchAdminTab(tab) {
+  const allTabs = ['players','setup','results','qrcodes','invite','scan'];
+  const tabEls = document.querySelectorAll('#admin-tabs .tab');
+  allTabs.forEach((t, i) => {
+    if (tabEls[i]) tabEls[i].classList.toggle('active', t === tab);
+    const el = document.getElementById('admin-tab-' + t);
+    if (el) el.style.display = t === tab ? 'block' : 'none';
+  });
+  // Sync big action buttons
+  const bigBtns = document.querySelectorAll('#screen-admin .btn[onclick*="switchAdminTab"]');
+  bigBtns.forEach(b => {
+    const isActive = b.getAttribute('onclick').includes(`'${tab}'`);
+    b.className = isActive ? 'btn btn-primary' : 'btn btn-outline';
+    b.style.flex = '1'; b.style.padding = '16px 8px'; b.style.fontSize = '10px'; b.style.minWidth = '120px';
+  });
+  if (tab === 'results')  renderAdminResults();
+  if (tab === 'qrcodes')  buildAdminQRCodes();
+  if (tab === 'invite')   buildInviteTab();
+  if (tab === 'scan')     initScanTab();
+}
+
+// ─── ADMIN QR CODES ──────────────────────────────────────
+let _adminQrPlayerDone = false, _adminQrAdminDone = false;
+
+function buildAdminQRCodes() {
+  const playerURL = buildURL('player');
+  const adminURL  = buildURL('admin');
+
+  document.getElementById('admin-player-url').textContent = playerURL;
+  document.getElementById('admin-admin-url').textContent  = adminURL;
+
+  if (window.QRCode) {
+    if (!_adminQrPlayerDone) {
+      const el = document.getElementById('admin-qr-player-canvas');
+      el.innerHTML = '';
+      new QRCode(el, { text: playerURL, width: 220, height: 220, colorDark: '#0a0a0a', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+      _adminQrPlayerDone = true;
+    }
+    if (!_adminQrAdminDone) {
+      const el = document.getElementById('admin-qr-admin-canvas');
+      el.innerHTML = '';
+      new QRCode(el, { text: adminURL, width: 220, height: 220, colorDark: '#0a0a0a', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+      _adminQrAdminDone = true;
+    }
+  }
+}
+
+function downloadQR(type) {
+  const canvasEl = document.getElementById(type === 'player' ? 'admin-qr-player-canvas' : 'admin-qr-admin-canvas');
+  const img = canvasEl.querySelector('img') || canvasEl.querySelector('canvas');
+  if (!img) { showToast('QR not ready yet.'); return; }
+  const src = img.tagName === 'CANVAS' ? img.toDataURL('image/png') : img.src;
+  const a = document.createElement('a');
+  a.href = src;
+  a.download = `judgment-of-paris-${type}-qr.png`;
+  a.click();
+  showToast('QR code downloaded!');
+}
+
+function printQR(type) {
+  const canvasEl = document.getElementById(type === 'player' ? 'admin-qr-player-canvas' : 'admin-qr-admin-canvas');
+  const img = canvasEl.querySelector('img') || canvasEl.querySelector('canvas');
+  if (!img) { showToast('QR not ready yet.'); return; }
+  const src = img.tagName === 'CANVAS' ? img.toDataURL('image/png') : img.src;
+  const url = buildURL(type);
+  const win = window.open('', '_blank');
+  win.document.write(`
+    <!DOCTYPE html><html><head><title>Judgment of Paris V — ${type === 'player' ? 'Player' : 'Admin'} QR</title>
+    <style>body{font-family:Georgia,serif;text-align:center;padding:60px 40px;background:#fff;color:#111;}
+    h2{font-size:28px;font-weight:300;letter-spacing:.08em;margin-bottom:8px;}
+    p{font-size:12px;color:#888;letter-spacing:.1em;margin-bottom:32px;}
+    img{width:280px;height:280px;display:block;margin:0 auto 24px;}
+    .url{font-size:11px;color:#555;word-break:break-all;max-width:320px;margin:0 auto;}</style></head>
+    <body>
+    <h2>Corient Presents — <em>Judgment of Paris V</em></h2>
+    <p>${type === 'player' ? 'SCAN TO JOIN THE TASTING' : 'ADMINISTRATOR ACCESS — KEEP PRIVATE'}</p>
+    <img src="${src}">
+    <div class="url">${url}</div>
+    <script>window.onload=()=>{window.print();}<\/script>
+    </body></html>`);
+  win.document.close();
+}
+window.downloadQR = downloadQR;
+window.printQR = printQR;
+
+// ─── INVITE TAB ──────────────────────────────────────────
+function buildInviteTab() {
+  const playerURL = buildURL('player');
+  const el = document.getElementById('invite-player-url');
+  if (el) el.textContent = playerURL;
+}
+
+function sendInvite() {
+  const email = document.getElementById('invite-email').value.trim();
+  if (!email) { showToast('Please enter an email address.'); return; }
+  const playerURL = buildURL('player');
+  const subject = encodeURIComponent('You\'re invited — Corient Presents: Judgment of Paris V');
+  const body = encodeURIComponent(
+    `You've been invited to participate in the Judgment of Paris V wine tasting!\n\n` +
+    `Scan the QR code at the event or open this link on your phone to get started:\n\n` +
+    `${playerURL}\n\n` +
+    `You'll be able to evaluate each wine, rate it, and guess its origin. Good luck!\n\n` +
+    `— Corient`
+  );
+  window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+  document.getElementById('invite-email').value = '';
+  showToast('Email app opened!');
+}
+
+function sendBulkInvite() {
+  const raw = document.getElementById('bulk-invite-emails').value.trim();
+  if (!raw) { showToast('Please enter at least one email address.'); return; }
+  const emails = raw.split('\n').map(e => e.trim()).filter(Boolean);
+  if (!emails.length) { showToast('No valid emails found.'); return; }
+  const playerURL = buildURL('player');
+  const subject = encodeURIComponent('You\'re invited — Corient Presents: Judgment of Paris V');
+  const body = encodeURIComponent(
+    `You've been invited to participate in the Judgment of Paris V wine tasting!\n\n` +
+    `Open this link on your phone:\n\n${playerURL}\n\n` +
+    `— Corient`
+  );
+  // Open one mailto with bcc for all
+  const bcc = emails.slice(1).join(',');
+  const href = `mailto:${emails[0]}${bcc ? '?bcc=' + encodeURIComponent(bcc) : ''}` +
+    `${bcc ? '&' : '?'}subject=${subject}&body=${body}`;
+  window.location.href = href;
+  showToast(`Email app opened for ${emails.length} recipient${emails.length > 1 ? 's' : ''}!`);
+}
+window.sendInvite = sendInvite;
+window.sendBulkInvite = sendBulkInvite;
+
+// ─── CONFETTI ────────────────────────────────────────────
+function startConfetti() {
+  const canvas = document.getElementById('confetti-canvas');
+  canvas.style.display = 'block';
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+  const colors = ['#c0c0c0','#e8e8e8','#b8a070','#888','#fff','#d4af37'];
+  const pieces = Array.from({length:130}, () => ({
+    x: Math.random()*canvas.width, y: Math.random()*-canvas.height,
+    w: Math.random()*8+4, h: Math.random()*14+6,
+    color: colors[Math.floor(Math.random()*colors.length)],
+    angle: Math.random()*Math.PI*2, spin:(Math.random()-.5)*.2,
+    vx:(Math.random()-.5)*1.5, vy:Math.random()*2+1
+  }));
+  let frame = 0;
+  (function draw() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    pieces.forEach(p => {
+      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.angle);
+      ctx.fillStyle=p.color; ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h); ctx.restore();
+      p.x+=p.vx; p.y+=p.vy; p.angle+=p.spin;
+      if (p.y>canvas.height+20) { p.y=-20; p.x=Math.random()*canvas.width; }
+    });
+    if (++frame<420) requestAnimationFrame(draw);
+    else { ctx.clearRect(0,0,canvas.width,canvas.height); canvas.style.display='none'; }
+  })();
+}
+
+// ─── SCAN PAPER SHEET ────────────────────────────────────
+let _scanImageBase64 = null;
+let _scanImageType   = null;
+
+function handleScanDrop(e) {
+  e.preventDefault();
+  document.getElementById('scan-drop-zone').style.borderColor = 'var(--border)';
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) loadScanFile(file);
+}
+
+function handleScanFile(e) {
+  const file = e.target.files[0];
+  if (file) loadScanFile(file);
+}
+
+function loadScanFile(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const dataURL = e.target.result;
+    // Compress image to stay under 5MB API limit
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      // Scale down if needed — max 1600px on longest side
+      const MAX = 1600;
+      let w = img.width, h = img.height;
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+        else       { w = Math.round(w * MAX / h); h = MAX; }
+      }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      // Compress as JPEG at 85% quality
+      const compressed = canvas.toDataURL('image/jpeg', 0.85);
+      _scanImageBase64 = compressed.split(',')[1];
+      _scanImageType   = 'image/jpeg';
+      document.getElementById('scan-preview-img').src = compressed;
+      document.getElementById('scan-preview-wrap').style.display = 'block';
+      document.getElementById('scan-drop-zone').style.display    = 'none';
+      document.getElementById('scan-submit-btn').style.display   = 'block';
+      document.getElementById('scan-status').innerHTML = '';
+    };
+    img.src = dataURL;
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearScan() {
+  _scanImageBase64 = null; _scanImageType = null;
+  document.getElementById('scan-preview-wrap').style.display = 'none';
+  document.getElementById('scan-drop-zone').style.display    = 'block';
+  document.getElementById('scan-submit-btn').style.display   = 'none';
+  document.getElementById('scan-status').innerHTML           = '';
+  document.getElementById('scan-file-input').value           = '';
+}
+
+async function submitScan() {
+  if (!_scanImageBase64) { showToast('No image loaded.'); return; }
+
+  const wineList  = (await dbGet('game/wineList'))  || [];
+  const answerKey = (await dbGet('game/answerKey')) || {};
+
+  const statusEl = document.getElementById('scan-status');
+  statusEl.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:4px;">
+      <div class="spinner" style="width:20px;height:20px;border-width:2px;flex-shrink:0;"></div>
+      <span style="font-size:12px;color:var(--text-dim);">Reading scoresheet with AI…</span>
+    </div>`;
+  document.getElementById('scan-submit-btn').disabled = true;
+
+  const wineListStr = wineList.length
+    ? wineList.map((w,i) => `${i+1}. ${w}`).join(', ')
+    : 'Not set yet';
+
+  const prompt = `You are reading a handwritten wine tasting scoresheet. Do your absolute best to extract whatever information is visible, even if the image is imperfect, blurry, or at an angle. Make your best guess rather than returning null.
+
+The sheet has a player name at the top, and 12 numbered wine rows. Each row has:
+- A checkbox or mark for country: France or USA
+- A written or selected wine name
+- A circled or written number 1-10 for rating
+
+Available wine names to match against: ${wineListStr}
+
+Instructions:
+- For the player name: read whatever is written, guess if unclear
+- For country: if you see any mark near France, return "France". Near USA, return "USA". If totally blank return null.
+- For wine name: match loosely to the closest name in the list above. Partial words, abbreviations, or first letters are fine — pick the best match. Only return null if the field is completely empty.
+- For rating: read any circled, underlined, or written number 1-10. If you see any mark near a number, use that number. Only return null if truly blank.
+- Do NOT return null just because something is hard to read — make your best guess.
+
+Return ONLY a valid JSON object, no explanation, no markdown:
+{
+  "playerName": "best guess at name",
+  "wines": {
+    "1": { "country": "France" or "USA" or null, "name": "best match from list or null", "rating": number 1-10 or null },
+    "2": { ... },
+    "3": { ... },
+    "4": { ... },
+    "5": { ... },
+    "6": { ... },
+    "7": { ... },
+    "8": { ... },
+    "9": { ... },
+    "10": { ... },
+    "11": { ... },
+    "12": { ... }
+  }
+}`;
+
+  const apiKey = window._anthropicKey || '';
+  if (!apiKey || apiKey.includes('PASTE')) {
+    statusEl.innerHTML = `<div style="padding:14px;background:rgba(139,32,32,0.1);border:1px solid rgba(139,32,32,0.3);border-radius:4px;font-size:12px;color:#e57373;">Anthropic API key not configured. Open the HTML file in a text editor and replace <strong>PASTE_ANTHROPIC_KEY_HERE</strong> with your key.</div>`;
+    document.getElementById('scan-submit-btn').disabled = false;
+    return;
+  }
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: _scanImageType, data: _scanImageBase64 } },
+            { type: 'text', text: prompt }
+          ]
+        }]
+      })
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      const errMsg = data.error?.message || data.error?.type || JSON.stringify(data);
+      throw new Error(`API rejected: ${errMsg}`);
+    }
+
+    const raw  = data.content.find(b => b.type === 'text')?.text || '';
+    // Strip any markdown, find the JSON object
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No JSON found in response');
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    // Ensure wines object exists with all 12 entries
+    if (!parsed.wines) parsed.wines = {};
+    for (let i = 1; i <= 12; i++) {
+      if (!parsed.wines[i]) parsed.wines[i] = { country: null, name: null, rating: null };
+    }
+
+    await confirmAndSaveScan(parsed, answerKey);
+
+  } catch(err) {
+    console.error(err);
+    statusEl.innerHTML = `
+      <div style="padding:14px;background:rgba(139,32,32,0.1);border:1px solid rgba(139,32,32,0.3);border-radius:4px;font-size:12px;color:#e57373;line-height:1.7;">
+        <strong>Could not process the sheet.</strong><br>
+        ${err.message}<br><br>
+        Tips: ensure the sheet is flat, well-lit, and the full page is visible. Then try again.
+      </div>`;
+  } finally {
+    document.getElementById('scan-submit-btn').disabled = false;
+  }
+}
+
+async function confirmAndSaveScan(parsed, answerKey) {
+  const statusEl = document.getElementById('scan-status');
+  const wines    = parsed.wines || {};
+  const scores   = computePlayerScore({ wines }, answerKey);
+
+  // Build preview table
+  let rows = '';
+  for (let i = 1; i <= 12; i++) {
+    const w   = wines[i] || {};
+    const ans = answerKey[i] || {};
+    const cOk = ans.country && w.country === ans.country;
+    const nOk = ans.name    && w.name    === ans.name;
+    rows += `<tr>
+      <td style="padding:5px 8px;font-family:'Cormorant Garamond',serif;font-size:16px;color:var(--silver-dark);">${i}</td>
+      <td style="padding:5px 8px;font-size:11px;">${w.country||'—'} ${ans.country ? `<span class="${cOk?'correct':'incorrect'}">${cOk?'✓':'✗'}</span>` : ''}</td>
+      <td style="padding:5px 8px;font-size:11px;">${w.name||'—'} ${ans.name ? `<span class="${nOk?'correct':'incorrect'}">${nOk?'✓':'✗'}</span>` : ''}</td>
+      <td style="padding:5px 8px;font-size:11px;text-align:center;">${w.rating||'—'}</td>
+    </tr>`;
+  }
+
+  const hasAnswerKey = Object.keys(answerKey).length > 0;
+
+  statusEl.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;overflow:hidden;">
+      <div style="padding:16px 16px 10px;border-bottom:1px solid var(--border);">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--silver-light);margin-bottom:4px;">
+          AI read: <strong>${parsed.playerName || 'Unknown Player'}</strong>
+        </div>
+        ${hasAnswerKey ? `<div style="font-size:12px;color:var(--text-dim);">Score: <strong style="color:var(--text);">${scores.total}/24</strong> (${scores.countryPts} origin + ${scores.namePts} wine ID)</div>` : '<div style="font-size:11px;color:#b8a070;">Answer key not set — will be scored when key is saved.</div>'}
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead><tr style="background:var(--surface2);">
+            <th style="padding:6px 8px;font-size:9px;letter-spacing:.15em;text-align:left;color:var(--text-dim);">#</th>
+            <th style="padding:6px 8px;font-size:9px;letter-spacing:.15em;text-align:left;color:var(--text-dim);">ORIGIN</th>
+            <th style="padding:6px 8px;font-size:9px;letter-spacing:.15em;text-align:left;color:var(--text-dim);">WINE</th>
+            <th style="padding:6px 8px;font-size:9px;letter-spacing:.15em;text-align:center;color:var(--text-dim);">RTG</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div style="padding:14px 16px;border-top:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:180px;">
+          <label style="font-size:9px;letter-spacing:.15em;display:block;margin-bottom:6px;color:var(--text-dim);">CONFIRM PLAYER NAME</label>
+          <input type="text" id="scan-name-confirm" value="${parsed.playerName||''}" style="width:100%;padding:8px 10px;font-size:13px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:'Montserrat',sans-serif;">
+        </div>
+      </div>
+      <div style="padding:0 16px 16px;display:flex;gap:10px;">
+        <button class="btn btn-outline" style="flex:1;font-size:9px;" onclick="clearScan()">Discard</button>
+        <button class="btn btn-primary" style="flex:1;font-size:9px;" onclick="saveScanPlayer(${JSON.stringify(parsed).replace(/"/g, '&quot;')})">✓ Add to Leaderboard</button>
+      </div>
+    </div>`;
+}
+
+async function saveScanPlayer(parsed) {
+  const nameOverride = document.getElementById('scan-name-confirm')?.value.trim() || parsed.playerName || 'Paper Player';
+  const id = 'scan_' + Date.now().toString(36);
+
+  const player = {
+    id,
+    name:      nameOverride,
+    email:     '',
+    wines:     parsed.wines || {},
+    submitted: true,
+    scanned:   true,
+    registeredAt: Date.now()
+  };
+
+  await dbSet('players/' + id, player);
+  showToast(`${nameOverride} added to leaderboard!`);
+  clearScan();
+  document.getElementById('scan-status').innerHTML = `
+    <div style="padding:14px;background:rgba(58,158,95,0.1);border:1px solid rgba(58,158,95,0.3);border-radius:4px;font-size:12px;color:#3a9e5f;">
+      ✓ <strong>${nameOverride}</strong> has been added to the leaderboard.
+      <button class="btn btn-outline" style="margin-left:10px;font-size:9px;padding:4px 10px;" onclick="switchAdminTab('players')">View Players</button>
+    </div>`;
+}
+
+function saveScanApiKey() {
+  const val = document.getElementById('scan-api-key')?.value?.trim();
+  if (val) sessionStorage.setItem('jop5_scan_apikey', val);
+}
+
+function initScanTab() {
+  const saved = sessionStorage.getItem('jop5_scan_apikey');
+  const el = document.getElementById('scan-api-key');
+  if (saved && el) el.value = saved;
+}
+window.saveScanApiKey = saveScanApiKey;
+window.initScanTab    = initScanTab;
+window.handleScanFile  = handleScanFile;
+window.clearScan       = clearScan;
+window.submitScan      = submitScan;
+window.saveScanPlayer  = saveScanPlayer;
+window.showScreen       = showScreen;
+window.showAdminQR      = showAdminQR;
+window.copyLink         = copyLink;
+window.toggleTheme      = toggleTheme;
+window.registerPlayer   = registerPlayer;
+window.openWine         = openWine;
+window.setCountry       = setCountry;
+window.saveWine         = saveWine;
+window.backToGrid       = backToGrid;
+window.submitForm       = submitForm;
+window.doSubmit         = doSubmit;
+window.hideSubmitModal  = hideSubmitModal;
+window.viewMyScore      = viewMyScore;
+window.initAdminPanel   = initAdminPanel;
+window.saveWineList     = saveWineList;
+window.saveAnswerKey    = saveAnswerKey;
+window.endGame          = endGame;
+window.renderAdminResults = renderAdminResults;
+window.switchAdminTab   = switchAdminTab;
+window.startNameEdit    = startNameEdit;
+window.saveNameEdit     = saveNameEdit;
+window.buildAdminQRCodes = buildAdminQRCodes;
+window.buildInviteTab   = buildInviteTab;
+</script>
+<!-- ══════════ ADMIN PLAYER DETAIL MODAL ══════════ -->
+<div id="player-detail-modal" style="display:none;position:fixed;inset:0;z-index:600;align-items:flex-start;justify-content:center;background:rgba(0,0,0,0.65);backdrop-filter:blur(3px);overflow-y:auto;padding:24px 16px;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;width:100%;max-width:500px;margin:auto;">
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--border);">
+      <div>
+        <div id="player-detail-title" style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--silver-light);"></div>
+        <div id="player-detail-sub"   style="font-size:10px;color:var(--text-dim);margin-top:3px;letter-spacing:.05em;"></div>
+      </div>
+      <button onclick="closePlayerDetail()" style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:22px;line-height:1;padding:4px 4px 4px 12px;">&times;</button>
+    </div>
+    <!-- Column headers -->
+    <div style="display:grid;grid-template-columns:28px 1fr 1fr auto;gap:8px;padding:8px 20px;border-bottom:1px solid var(--border);">
+      <span style="font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-dim);">#</span>
+      <span style="font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-dim);">Wine / Country</span>
+      <span style="font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-dim);text-align:center;">Rating</span>
+      <span style="font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-dim);text-align:right;">Done</span>
+    </div>
+    <!-- Rows -->
+    <div id="player-detail-rows" style="padding:0 20px;max-height:55vh;overflow-y:auto;"></div>
+    <!-- Footer -->
+    <div style="padding:16px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:space-between;align-items:center;">
+      <button id="player-detail-delete" class="btn btn-danger" style="font-size:9px;padding:8px 16px;">🗑 Delete Player</button>
+      <div style="display:flex;gap:10px;">
+        <button id="player-detail-unsubmit" class="btn btn-outline" style="font-size:9px;padding:8px 16px;display:none;">Un-submit Form</button>
+        <button class="btn btn-primary" style="font-size:9px;padding:8px 16px;" onclick="closePlayerDetail()">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ RESET GAME MODAL ══════════ -->
+<div id="reset-modal" style="display:none;position:fixed;inset:0;z-index:700;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);backdrop-filter:blur(3px);padding:24px;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:32px 28px;max-width:380px;width:100%;">
+    <div style="font-size:28px;text-align:center;margin-bottom:16px;">↺</div>
+    <h3 style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:var(--silver-light);text-align:center;margin-bottom:10px;">Reset the Game</h3>
+    <p style="font-size:12px;color:var(--text-dim);line-height:1.7;text-align:center;margin-bottom:24px;">Choose what to reset. Both options reopen the game so new players can join.</p>
+
+    <div style="border:1px solid var(--border);border-radius:4px;margin-bottom:10px;overflow:hidden;">
+      <div style="padding:14px 16px;">
+        <div style="font-size:13px;color:var(--text);margin-bottom:4px;font-weight:500;">Soft Reset</div>
+        <div style="font-size:11px;color:var(--text-dim);line-height:1.6;">Clears all players and submissions. <strong style="color:var(--text);">Keeps</strong> the wine list and answer key. Use this to run the game again with a new group.</div>
+        <button class="btn btn-outline btn-full" style="margin-top:12px;font-size:10px;" onclick="closeResetModal('soft')">Clear Players Only</button>
+      </div>
+    </div>
+
+    <div style="border:1px solid rgba(139,32,32,0.4);border-radius:4px;margin-bottom:20px;overflow:hidden;">
+      <div style="padding:14px 16px;">
+        <div style="font-size:13px;color:#e57373;margin-bottom:4px;font-weight:500;">Full Reset</div>
+        <div style="font-size:11px;color:var(--text-dim);line-height:1.6;">Wipes <strong style="color:var(--text);">everything</strong> — players, submissions, wine list, and answer key. A completely clean slate.</div>
+        <button class="btn btn-danger btn-full" style="margin-top:12px;font-size:10px;" onclick="closeResetModal('full')">Wipe Everything</button>
+      </div>
+    </div>
+
+    <button class="btn btn-outline btn-full" style="font-size:10px;" onclick="closeResetModal(null)">Cancel</button>
+  </div>
+</div>
+
+</body>
+</html>
