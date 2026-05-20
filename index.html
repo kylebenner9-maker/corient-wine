@@ -568,7 +568,10 @@ window.addEventListener('DOMContentLoaded', () => {
   <div class="container scroll-body">
     <p class="section-label" style="margin-top:20px;">Select a Wine to Evaluate</p>
     <div class="wine-grid" id="wine-grid-tiles"></div>
-    <div class="mt-24" id="submit-area">
+    <p style="font-size:11px;color:var(--text-dim);line-height:1.6;margin-top:16px;font-style:italic;text-align:center;padding:0 8px;">
+      Guess each wine's varietal and identification to earn points. 1 point for each correct varietal, 1 point for each correct identification — 24 points possible. Also rate the wines to determine which country comes out on top.
+    </p>
+    <div class="mt-16" id="submit-area">
       <button class="btn btn-primary btn-full" onclick="submitForm()" id="submit-btn">Submit My Evaluations</button>
       <p class="small-note text-center mt-8" id="submit-note"></p>
     </div>
@@ -585,10 +588,10 @@ window.addEventListener('DOMContentLoaded', () => {
     </div>
   </div>
   <div class="container scroll-body" style="padding-top:20px;">
-    <p class="section-label">Country of Origin</p>
-    <div class="country-toggle">
-      <button class="country-btn" id="btn-france" onclick="setCountry('France')">🇫🇷 France</button>
-      <button class="country-btn" id="btn-usa"    onclick="setCountry('USA')">🇺🇸 United States</button>
+    <p class="section-label">Varietal</p>
+    <div class="country-toggle" id="varietal-toggle">
+      <button class="country-btn" id="btn-varietal-a" onclick="setVarietal('a')">—</button>
+      <button class="country-btn" id="btn-varietal-b" onclick="setVarietal('b')">—</button>
     </div>
 
     <p class="section-label">Wine Name</p>
@@ -701,8 +704,15 @@ window.addEventListener('DOMContentLoaded', () => {
       </div>
       <div class="separator"></div>
       <div class="admin-section">
+        <h3>Varietal Groups</h3>
+        <p class="small-note mb-8">Assign two varietal options per group. Players guess which varietal each wine is. Groups can be any size — adjust the wine ranges to split 12 wines however you like.</p>
+        <div id="varietal-group-inputs"></div>
+        <button class="btn btn-outline mt-16" onclick="saveVarietalGroups()">Save Varietal Groups</button>
+      </div>
+      <div class="separator"></div>
+      <div class="admin-section">
         <h3>Answer Key</h3>
-        <p class="small-note mb-8">For each numbered wine, set the correct country and name.</p>
+        <p class="small-note mb-8">For each wine, set the correct varietal and identification.</p>
         <div id="answer-key-inputs"></div>
         <button class="btn btn-outline mt-16" onclick="saveAnswerKey()">Save Answer Key</button>
       </div>
@@ -1076,7 +1086,7 @@ function buildGrid(player, ended) {
   const submitBtn  = document.getElementById('submit-btn');
   const submitNote = document.getElementById('submit-note');
   const doneCount  = Array.from({length:12},(_,i)=>i+1).filter(i => {
-    const w = (player.wines||{})[i]||{}; return w.country&&w.name&&w.rating;
+    const w = (player.wines||{})[i]||{}; return w.varietal&&w.name&&w.rating;
   }).length;
 
   if (player.submitted) {
@@ -1165,8 +1175,20 @@ async function openWine(num) {
 
   document.getElementById('wine-page-title').textContent = `Wine #${num}`;
 
-  document.getElementById('btn-france').classList.toggle('selected', w.country === 'France');
-  document.getElementById('btn-usa').classList.toggle('selected',    w.country === 'USA');
+  // Load varietal groups to find which group this wine belongs to
+  const varietalGroups = (await dbGet('game/varietalGroups')) || [];
+  let varA = 'Option A', varB = 'Option B';
+  for (const g of varietalGroups) {
+    if (num >= g.from && num <= g.to) {
+      varA = g.varA || 'Option A';
+      varB = g.varB || 'Option B';
+      break;
+    }
+  }
+  document.getElementById('btn-varietal-a').textContent = varA;
+  document.getElementById('btn-varietal-b').textContent = varB;
+  document.getElementById('btn-varietal-a').classList.toggle('selected', w.varietal === varA);
+  document.getElementById('btn-varietal-b').classList.toggle('selected', w.varietal === varB);
 
   const sel = document.getElementById('wine-name-select');
   sel.innerHTML = '<option value="">— Select wine name —</option>';
@@ -1185,24 +1207,32 @@ async function openWine(num) {
   showScreen('screen-wine');
 }
 
-function setCountry(c) {
-  document.getElementById('btn-france').classList.toggle('selected', c === 'France');
-  document.getElementById('btn-usa').classList.toggle('selected', c === 'USA');
+function setVarietal(which) {
+  const btnA = document.getElementById('btn-varietal-a');
+  const btnB = document.getElementById('btn-varietal-b');
+  btnA.classList.toggle('selected', which === 'a');
+  btnB.classList.toggle('selected', which === 'b');
 }
+// Keep setCountry as alias just in case
+function setCountry(c) { setVarietal(c); }
+window.setVarietal = setVarietal;
 
 async function saveWine() {
-  const country  = document.getElementById('btn-france').classList.contains('selected') ? 'France'
-                 : document.getElementById('btn-usa').classList.contains('selected')    ? 'USA' : null;
+  const btnA    = document.getElementById('btn-varietal-a');
+  const btnB    = document.getElementById('btn-varietal-b');
+  const varietal = btnA.classList.contains('selected') ? btnA.textContent
+                 : btnB.classList.contains('selected') ? btnB.textContent
+                 : null;
   const name     = document.getElementById('wine-name-select').value;
   const ratingEl = document.querySelector('.rating-btn.selected');
   const rating   = ratingEl ? parseInt(ratingEl.dataset.val) : null;
   const notes    = document.getElementById('wine-notes').value.trim();
 
   const myId = getMyId();
-  await dbUpdate('players/' + myId + '/wines/' + currentWineNum, { country: country||null, name: name||null, rating: rating||null, notes });
+  await dbUpdate('players/' + myId + '/wines/' + currentWineNum, { varietal: varietal||null, name: name||null, rating: rating||null, notes });
   if (_currentPlayer) {
     if (!_currentPlayer.wines) _currentPlayer.wines = {};
-    _currentPlayer.wines[currentWineNum] = { country, name, rating, notes };
+    _currentPlayer.wines[currentWineNum] = { varietal, name, rating, notes };
   }
   backToGrid();
 }
@@ -1213,7 +1243,7 @@ function backToGrid() { showGameGrid(_currentPlayer); }
 function submitForm() {
   const wines = (_currentPlayer && _currentPlayer.wines) || {};
   const doneCount = Array.from({length:12},(_,i)=>i+1).filter(i => {
-    const w = wines[i]||{}; return w.country&&w.name&&w.rating;
+    const w = wines[i]||{}; return w.varietal&&w.name&&w.rating;
   }).length;
   if (doneCount < 12) { showSubmitModal(doneCount); }
   else { doSubmit(); }
@@ -1254,8 +1284,8 @@ async function viewMyScore() {
   let html = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:24px;">
       <div class="score-card"><div class="score-title">Your Score</div><div class="score-value">${scores.total}</div><div class="score-sub">out of 24 points</div></div>
-      <div class="score-card"><div class="score-title">Countries Correct</div><div class="score-value">${scores.countryPts}</div><div class="score-sub">out of 12</div></div>
-      <div class="score-card"><div class="score-title">Wines Matched</div><div class="score-value">${scores.namePts}</div><div class="score-sub">out of 12</div></div>
+      <div class="score-card"><div class="score-title">Varietals Correct</div><div class="score-value">${scores.varietalPts}</div><div class="score-sub">out of 12</div></div>
+      <div class="score-card"><div class="score-title">Wines Identified</div><div class="score-value">${scores.namePts}</div><div class="score-sub">out of 12</div></div>
     </div>
     <p class="section-label">Wine-by-Wine Breakdown</p>
     <div class="score-card" style="padding:0;overflow:hidden;">
@@ -1263,15 +1293,15 @@ async function viewMyScore() {
   for (let i = 1; i <= 12; i++) {
     const w   = (player.wines || {})[i] || {};
     const ans = answerKey[i] || {};
-    const cOk = ans.country && w.country === ans.country;
-    const nOk = ans.name    && w.name    === ans.name;
+    const vOk = ans.varietal && w.varietal === ans.varietal;
+    const nOk = ans.name     && w.name     === ans.name;
     html += `
       <div class="answer-row">
         <span class="aw-num">${i}</span>
-        <div style="flex:1;"><div class="aw-wine">${ans.name||'—'}</div><div class="aw-country">${ans.country||'—'}</div></div>
+        <div style="flex:1;"><div class="aw-wine">${ans.name||'—'}</div><div class="aw-country">${ans.varietal||'—'}</div></div>
         <div style="text-align:right;font-size:11px;line-height:1.8;">
-          <span class="${cOk?'correct':'incorrect'}">${w.country||'?'} ${cOk?'✓':'✗'}</span><br>
-          <span class="${nOk?'correct':'incorrect'}" style="font-size:10px;">${nOk?'Name ✓':'Name ✗'}</span>
+          <span class="${vOk?'correct':'incorrect'}">${w.varietal||'?'} ${vOk?'✓':'✗'}</span><br>
+          <span class="${nOk?'correct':'incorrect'}" style="font-size:10px;">${nOk?'ID ✓':'ID ✗'}</span>
         </div>
       </div>
     `;
@@ -1283,23 +1313,24 @@ async function viewMyScore() {
 
 // ─── SCORING ─────────────────────────────────────────────
 function computePlayerScore(player, answerKey) {
-  let countryPts = 0, namePts = 0;
+  let varietalPts = 0, namePts = 0;
   for (let i = 1; i <= 12; i++) {
     const w = (player.wines||{})[i]||{}, ans = answerKey[i]||{};
-    if (ans.country && w.country === ans.country) countryPts++;
-    if (ans.name    && w.name    === ans.name)    namePts++;
+    if (ans.varietal && w.varietal === ans.varietal) varietalPts++;
+    if (ans.name     && w.name     === ans.name)     namePts++;
   }
-  return { countryPts, namePts, total: countryPts + namePts };
+  return { varietalPts, namePts, total: varietalPts + namePts };
 }
 
 async function computeAllScores() {
-  const playersMap = (await dbGet('players')) || {};
-  const answerKey  = (await dbGet('game/answerKey')) || {};
-  const players    = Object.values(playersMap);
+  const playersMap    = (await dbGet('players'))           || {};
+  const answerKey     = (await dbGet('game/answerKey'))    || {};
+  const players       = Object.values(playersMap);
 
   const playerScores = players.map(p => ({ ...p, scores: computePlayerScore(p, answerKey) }))
     .sort((a,b) => b.scores.total - a.scores.total);
 
+  // ── Bottle winner: avg rating per wine ──
   const wineRatings = {};
   for (let i = 1; i <= 12; i++) wineRatings[i] = { sum:0, count:0 };
   players.forEach(p => {
@@ -1313,21 +1344,49 @@ async function computeAllScores() {
     name: (answerKey[num]||{}).name || `Wine ${num}`
   })).sort((a,b) => b.avg - a.avg);
 
-  const countryTotals = { France:{sum:0,count:0}, USA:{sum:0,count:0} };
+  // ── Country winner 1: avg rating per country across all players ──
+  const countryRatings = {};
   players.forEach(p => {
     for (let i = 1; i <= 12; i++) {
       const w = (p.wines||{})[i], ak = answerKey[i];
       if (w && w.rating && ak && ak.country) {
-        countryTotals[ak.country].sum   += w.rating;
-        countryTotals[ak.country].count += 1;
+        if (!countryRatings[ak.country]) countryRatings[ak.country] = { sum:0, count:0 };
+        countryRatings[ak.country].sum   += w.rating;
+        countryRatings[ak.country].count += 1;
       }
     }
   });
-  const countryAvgs = Object.entries(countryTotals)
+  const countryAvgs = Object.entries(countryRatings)
     .map(([c,v]) => ({ country:c, avg: v.count ? (v.sum/v.count).toFixed(2) : '—' }))
     .sort((a,b) => (parseFloat(b.avg)||0) - (parseFloat(a.avg)||0));
 
-  return { playerScores, wineAvgs, countryAvgs, answerKey };
+  // ── Country winner 2: player preference votes ──
+  // Each player votes for the country they personally rated higher on average
+  const countryVotes = {};
+  players.forEach(p => {
+    const perCountry = {};
+    for (let i = 1; i <= 12; i++) {
+      const w = (p.wines||{})[i], ak = answerKey[i];
+      if (w && w.rating && ak && ak.country) {
+        if (!perCountry[ak.country]) perCountry[ak.country] = { sum:0, count:0 };
+        perCountry[ak.country].sum   += w.rating;
+        perCountry[ak.country].count += 1;
+      }
+    }
+    // Find which country this player preferred (higher personal avg)
+    const ranked = Object.entries(perCountry)
+      .map(([c,v]) => ({ country:c, avg: v.count ? v.sum/v.count : 0 }))
+      .sort((a,b) => b.avg - a.avg);
+    if (ranked.length && ranked[0].avg > 0) {
+      const winner = ranked[0].country;
+      countryVotes[winner] = (countryVotes[winner] || 0) + 1;
+    }
+  });
+  const countryVoteResults = Object.entries(countryVotes)
+    .map(([c,v]) => ({ country:c, votes:v }))
+    .sort((a,b) => b.votes - a.votes);
+
+  return { playerScores, wineAvgs, countryAvgs, countryVoteResults, answerKey };
 }
 
 // ─── ADMIN PASSWORD ──────────────────────────────────────
@@ -1438,7 +1497,7 @@ function renderAdminPlayerList(playersMap) {
   const players = Object.values(playersMap).sort((a,b) => (a.name||'').localeCompare(b.name||''));
   if (!players.length) { div.innerHTML = '<p class="small-note">No players registered yet.</p>'; return; }
   const doneCount = p => Array.from({length:12},(_,i)=>i+1).filter(i => {
-    const w = (p.wines||{})[i]||{}; return w.country&&w.name&&w.rating;
+    const w = (p.wines||{})[i]||{}; return w.varietal&&w.name&&w.rating;
   }).length;
   div.innerHTML = players.map(p => `
     <div class="player-row" style="cursor:pointer;" onclick="adminViewPlayer('${p.id}')">
@@ -1472,9 +1531,9 @@ async function adminViewPlayer(id) {
   for (let i = 1; i <= 12; i++) {
     const w   = wines[i] || {};
     const ans = answerKey[i] || {};
-    const hasEntry = w.country || w.name || w.rating;
-    const cOk = scored && ans.country && w.country === ans.country;
-    const nOk = scored && ans.name    && w.name    === ans.name;
+    const hasEntry = w.varietal || w.name || w.rating;
+    const vOk = scored && ans.varietal && w.varietal === ans.varietal;
+    const nOk = scored && ans.name     && w.name     === ans.name;
 
     rows += `
       <div style="display:grid;grid-template-columns:28px 1fr 1fr auto;gap:8px;align-items:start;
@@ -1482,8 +1541,7 @@ async function adminViewPlayer(id) {
         <span style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--silver-dark);line-height:1.2;">${i}</span>
         <div>
           <div style="color:var(--text);margin-bottom:2px;">${w.name || '<span style="color:var(--text-dim)">—</span>'}</div>
-          <div style="font-size:10px;color:var(--text-dim);">${w.country || '—'}${scored && w.name ? ` <span class="${nOk?'correct':'incorrect'}">${nOk?'✓':'✗'}</span>` : ''}${scored && w.country ? ` <span class="${cOk?'correct':'incorrect'}">${cOk?'✓':'✗'}</span>` : ''}</div>
-          ${w.notes ? `<div style="font-size:10px;color:var(--text-dim);margin-top:3px;font-style:italic;">"${w.notes}"</div>` : ''}
+          <div style="font-size:10px;color:var(--text-dim);">${w.varietal || '—'}${scored && w.varietal ? ` <span class="${vOk?'correct':'incorrect'}">${vOk?'✓':'✗'}</span>` : ''}${scored && w.name ? ` <span class="${nOk?'correct':'incorrect'}">${nOk?'✓':'✗'}</span>` : ''}</div>
         </div>
         <div style="text-align:center;">
           ${w.rating ? `<span style="font-family:'Cormorant Garamond',serif;font-size:24px;color:var(--silver);">${w.rating}</span><span style="font-size:9px;color:var(--text-dim);">/10</span>` : '<span style="color:var(--text-dim);">—</span>'}
@@ -1495,7 +1553,7 @@ async function adminViewPlayer(id) {
   }
 
   const doneCount = Array.from({length:12},(_,i)=>i+1).filter(i => {
-    const w = wines[i]||{}; return w.country&&w.name&&w.rating;
+    const w = wines[i]||{}; return w.varietal&&w.name&&w.rating;
   }).length;
 
   document.getElementById('player-detail-title').textContent   = player.name;
@@ -1528,9 +1586,15 @@ window.adminViewPlayer  = adminViewPlayer;
 window.closePlayerDetail = closePlayerDetail;
 
 async function buildAdminInputs() {
-  const wineList  = (await dbGet('game/wineList'))  || [];
-  const answerKey = (await dbGet('game/answerKey')) || {};
+  const wineList      = (await dbGet('game/wineList'))      || [];
+  const answerKey     = (await dbGet('game/answerKey'))     || {};
+  const varietalGroups = (await dbGet('game/varietalGroups')) || [
+    { from:1, to:4, varA:'', varB:'' },
+    { from:5, to:8, varA:'', varB:'' },
+    { from:9, to:12, varA:'', varB:'' }
+  ];
 
+  // Wine list inputs
   const wineInputDiv = document.getElementById('wine-name-inputs');
   wineInputDiv.innerHTML = '';
   for (let i = 1; i <= 12; i++) {
@@ -1540,19 +1604,59 @@ async function buildAdminInputs() {
     wineInputDiv.appendChild(row);
   }
 
+  // Varietal groups
+  const vgDiv = document.getElementById('varietal-group-inputs');
+  vgDiv.innerHTML = '';
+  varietalGroups.forEach((g, gi) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:14px;margin-bottom:10px;';
+    row.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+        <span style="font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-dim);">Group ${gi+1} — Wines</span>
+        <input type="number" id="vg_from_${gi}" value="${g.from}" min="1" max="12" style="width:52px;padding:6px 8px;font-size:13px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);text-align:center;">
+        <span style="color:var(--text-dim);font-size:12px;">to</span>
+        <input type="number" id="vg_to_${gi}" value="${g.to}" min="1" max="12" style="width:52px;padding:6px 8px;font-size:13px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);text-align:center;">
+        ${gi > 0 ? `<button onclick="removeVarietalGroup(${gi})" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:16px;" title="Remove group">×</button>` : ''}
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:120px;">
+          <label style="font-size:9px;letter-spacing:.15em;">VARIETAL A</label>
+          <input type="text" id="vg_varA_${gi}" placeholder="e.g. Chardonnay" value="${g.varA||''}" style="width:100%;">
+        </div>
+        <div style="flex:1;min-width:120px;">
+          <label style="font-size:9px;letter-spacing:.15em;">VARIETAL B</label>
+          <input type="text" id="vg_varB_${gi}" placeholder="e.g. Pinot Gris" value="${g.varB||''}" style="width:100%;">
+        </div>
+      </div>
+    `;
+    vgDiv.appendChild(row);
+  });
+
+  // Add group button
+  const addBtn = document.createElement('button');
+  addBtn.className = 'btn btn-outline mt-8';
+  addBtn.textContent = '+ Add Group';
+  addBtn.style.fontSize = '9px';
+  addBtn.onclick = addVarietalGroup;
+  vgDiv.appendChild(addBtn);
+
+  // Answer key inputs — varietal comes from groups
   const akDiv = document.getElementById('answer-key-inputs');
   akDiv.innerHTML = '';
   for (let i = 1; i <= 12; i++) {
-    const ak   = answerKey[i] || {};
+    const ak  = answerKey[i] || {};
+    // Find varietal options for this wine
+    const grp = varietalGroups.find(g => i >= g.from && i <= g.to) || {};
+    const varOpts = [grp.varA, grp.varB].filter(Boolean);
+    const varBtnsHTML = varOpts.length
+      ? varOpts.map(v => `<button class="country-btn ${ak.varietal===v?'selected':''}" style="height:38px;font-size:11px;" data-ak-row="${i}" data-ak-varietal="${v}" onclick="setAKVarietal(${i},'${v}')">${v}</button>`).join('')
+      : `<span style="font-size:10px;color:var(--text-dim);">Set varietal groups first</span>`;
     const opts = wineList.map(w => `<option value="${w}" ${ak.name===w?'selected':''}>${w}</option>`).join('');
     const row  = document.createElement('div');
     row.style.cssText = 'margin-bottom:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;';
     row.innerHTML = `
       <span style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--silver-dark);min-width:24px;text-align:right;">${i}</span>
-      <div class="country-toggle" style="flex:0 0 auto;">
-        <button class="country-btn ${ak.country==='France'?'selected':''}" style="height:44px;font-size:12px;" data-ak-row="${i}" data-ak-country="France" onclick="setAKCountry(${i},'France')">🇫🇷 FR</button>
-        <button class="country-btn ${ak.country==='USA'?'selected':''}"    style="height:44px;font-size:12px;" data-ak-row="${i}" data-ak-country="USA"    onclick="setAKCountry(${i},'USA')">🇺🇸 US</button>
-      </div>
+      <div class="country-toggle" style="flex:0 0 auto;">${varBtnsHTML}</div>
       <select id="ak_name_${i}" style="flex:1;min-width:140px;">
         <option value="">— Select —</option>${opts}
       </select>
@@ -1561,18 +1665,51 @@ async function buildAdminInputs() {
   }
 }
 
-async function setAKCountry(num, country) {
-  // Update Firebase
-  const ak = (await dbGet('game/answerKey/' + num)) || {};
-  ak.country = country;
-  await dbSet('game/answerKey/' + num, ak);
+async function saveVarietalGroups() {
+  const vgDiv = document.getElementById('varietal-group-inputs');
+  const groupBtns = vgDiv.querySelectorAll('button[id^="vg_from_"], input[id^="vg_from_"]');
+  const groups = [];
+  let gi = 0;
+  while (document.getElementById(`vg_from_${gi}`) !== null) {
+    groups.push({
+      from: parseInt(document.getElementById(`vg_from_${gi}`).value) || 1,
+      to:   parseInt(document.getElementById(`vg_to_${gi}`).value)   || 12,
+      varA: (document.getElementById(`vg_varA_${gi}`)?.value || '').trim(),
+      varB: (document.getElementById(`vg_varB_${gi}`)?.value || '').trim(),
+    });
+    gi++;
+  }
+  await dbSet('game/varietalGroups', groups);
+  showToast('Varietal groups saved!');
+  await buildAdminInputs();
+}
+window.saveVarietalGroups = saveVarietalGroups;
 
-  // Update only the two buttons for this row — no DOM rebuild
+async function addVarietalGroup() {
+  const existing = (await dbGet('game/varietalGroups')) || [];
+  existing.push({ from:1, to:12, varA:'', varB:'' });
+  await dbSet('game/varietalGroups', existing);
+  await buildAdminInputs();
+}
+window.addVarietalGroup = addVarietalGroup;
+
+async function removeVarietalGroup(gi) {
+  const existing = (await dbGet('game/varietalGroups')) || [];
+  existing.splice(gi, 1);
+  await dbSet('game/varietalGroups', existing);
+  await buildAdminInputs();
+}
+window.removeVarietalGroup = removeVarietalGroup;
+
+async function setAKVarietal(num, varietal) {
+  const ak = (await dbGet('game/answerKey/' + num)) || {};
+  ak.varietal = varietal;
+  await dbSet('game/answerKey/' + num, ak);
   const akDiv = document.getElementById('answer-key-inputs');
   const btns = akDiv.querySelectorAll(`button[data-ak-row="${num}"]`);
-  btns.forEach(b => b.classList.toggle('selected', b.dataset.akCountry === country));
+  btns.forEach(b => b.classList.toggle('selected', b.dataset.akVarietal === varietal));
 }
-window.setAKCountry = setAKCountry;
+window.setAKVarietal = setAKVarietal;
 window.unsubmitPlayer = unsubmitPlayer;
 
 async function saveWineList() {
@@ -1605,37 +1742,44 @@ async function endGame() {
 async function renderAdminResults() {
   const div = document.getElementById('admin-results-content');
   div.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
-  const { playerScores, wineAvgs, countryAvgs, answerKey } = await computeAllScores();
+  const { playerScores, wineAvgs, countryAvgs, countryVoteResults, answerKey } = await computeAllScores();
 
   const cwHTML = countryAvgs.map((c,i) => `
     <div class="player-row">
-      <div class="player-info"><div class="player-name">${c.country==='France'?'🇫🇷':'🇺🇸'} ${c.country}</div></div>
+      <div class="player-info"><div class="player-name">${c.country}</div><div style="font-size:10px;color:var(--text-dim);">Avg rating</div></div>
       <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--silver);">${c.avg}</div>
-      ${i===0?'<span class="winner-badge">🏆 Winner</span>':''}
+      ${i===0?'<span class="winner-badge">🏆 Highest Rated</span>':''}
+    </div>`).join('');
+
+  const cvHTML = countryVoteResults.map((c,i) => `
+    <div class="player-row">
+      <div class="player-info"><div class="player-name">${c.country}</div><div style="font-size:10px;color:var(--text-dim);">Players who preferred</div></div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--silver);">${c.votes}</div>
+      ${i===0?'<span class="winner-badge">❤️ Most Preferred</span>':''}
     </div>`).join('');
 
   const bwHTML = wineAvgs.slice(0,5).map((w,i) => {
     const ak = answerKey[w.num]||{};
-    const ct = ak.country==='France'?'<span class="tag tag-fr">FR</span>':ak.country==='USA'?'<span class="tag tag-us">US</span>':'';
     return `<div class="player-row">
-      <div class="player-info"><div class="player-name">#${w.num} — ${w.name}${ct}</div></div>
+      <div class="player-info"><div class="player-name">#${w.num} — ${w.name}</div><div style="font-size:10px;color:var(--text-dim);">${ak.country||''}</div></div>
       <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--silver);">${w.avg.toFixed(2)}</div>
       ${i===0?'<span class="winner-badge">🍾 Fan Fav</span>':''}
     </div>`;
   }).join('');
 
   const plHTML = `<table class="results-table"><thead><tr>
-    <th>Rank</th><th>Player</th><th>Country</th><th>Name</th><th>Total</th>
+    <th>Rank</th><th>Player</th><th>Varietal</th><th>ID</th><th>Total</th>
   </tr></thead><tbody>
     ${playerScores.map((p,i) => `<tr>
       <td><span class="${i===0?'rank-gold':i===1?'rank-silver':i===2?'rank-bronze':''}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span></td>
-      <td>${p.name}</td><td>${p.scores.countryPts}/12</td><td>${p.scores.namePts}/12</td>
+      <td>${p.name}</td><td>${p.scores.varietalPts}/12</td><td>${p.scores.namePts}/12</td>
       <td style="font-weight:500;">${p.scores.total}/24</td>
     </tr>`).join('')}
   </tbody></table>`;
 
   div.innerHTML = `
-    <div class="admin-section"><h3>Country Winner</h3>${cwHTML||'<p class="small-note">No data yet.</p>'}</div>
+    <div class="admin-section"><h3>Country — Highest Avg Rating</h3>${cwHTML||'<p class="small-note">No data yet.</p>'}</div>
+    <div class="admin-section"><h3>Country — Player Preference Votes</h3>${cvHTML||'<p class="small-note">No data yet.</p>'}</div>
     <div class="admin-section"><h3>Top Bottles by Rating</h3>${bwHTML||'<p class="small-note">No data yet.</p>'}</div>
     <div class="admin-section"><h3>Player Leaderboard</h3>${plHTML}</div>
   `;
@@ -2087,8 +2231,11 @@ window.renderAdminResults = renderAdminResults;
 window.switchAdminTab   = switchAdminTab;
 window.startNameEdit    = startNameEdit;
 window.saveNameEdit     = saveNameEdit;
-window.buildAdminQRCodes = buildAdminQRCodes;
-window.buildInviteTab   = buildInviteTab;
+window.saveVarietalGroups  = saveVarietalGroups;
+window.addVarietalGroup    = addVarietalGroup;
+window.removeVarietalGroup = removeVarietalGroup;
+window.setAKVarietal       = setAKVarietal;
+window.setCountry          = setCountry;
 </script>
 <!-- ══════════ ADMIN PLAYER DETAIL MODAL ══════════ -->
 <div id="player-detail-modal" style="display:none;position:fixed;inset:0;z-index:600;align-items:flex-start;justify-content:center;background:rgba(0,0,0,0.65);backdrop-filter:blur(3px);overflow-y:auto;padding:24px 16px;">
