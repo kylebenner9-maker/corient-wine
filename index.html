@@ -191,11 +191,11 @@ window.addEventListener('DOMContentLoaded', () => {
   .wine-tile.completed { border-color:#3a9e5f; border-width:2px; }
   .wine-tile.submitted-lock { opacity:.55; cursor:default; }
   .wine-tile .tile-num {
-    font-family:'Cormorant Garamond',serif; font-size:32px;
-    font-weight:600; color:var(--text); line-height:1;
+    font-family:'Cormorant Garamond',serif; font-size:38px;
+    font-weight:700; color:var(--text); line-height:1;
   }
   .wine-tile .tile-label {
-    font-size:9px; letter-spacing:.15em; text-transform:uppercase; color:var(--text); font-weight:500;
+    font-size:9px; letter-spacing:.1em; text-transform:uppercase; color:var(--text); font-weight:600;
   }
   .wine-tile .check-mark {
     position:absolute; top:6px; right:6px; width:18px; height:18px;
@@ -241,7 +241,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   /* ── SECTION LABELS ── */
   .section-label {
-    font-size:10px; font-weight:700; letter-spacing:.2em; text-transform:uppercase;
+    font-size:13px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
     color:var(--text); margin-bottom:10px; margin-top:24px;
   }
   .section-label:first-of-type { margin-top:0; }
@@ -256,8 +256,8 @@ window.addEventListener('DOMContentLoaded', () => {
     color:var(--silver-dark); font-size:20px; line-height:1; padding:4px 8px 4px 0;
   }
   .back-btn:hover { color:var(--silver); }
-  .wine-page-header h2 { font-family:'Cormorant Garamond',serif; font-size:26px; font-weight:600; color:var(--text); }
-  .wine-page-header .wine-sub { font-size:11px; color:var(--text); letter-spacing:.05em; font-weight:500; }
+  .wine-page-header h2 { font-family:'Cormorant Garamond',serif; font-size:27px; font-weight:700; color:var(--text); }
+  .wine-page-header .wine-sub { font-size:12px; color:var(--text); letter-spacing:.03em; font-weight:500; }
 
   /* ── ADMIN ── */
   .admin-section { margin-bottom:32px; }
@@ -568,7 +568,7 @@ window.addEventListener('DOMContentLoaded', () => {
   <div class="container scroll-body">
     <p class="section-label" style="margin-top:20px;">Select a Wine to Evaluate</p>
     <div class="wine-grid" id="wine-grid-tiles"></div>
-    <p style="font-size:11px;color:var(--text-dim);line-height:1.6;margin-top:16px;font-style:italic;text-align:center;padding:0 8px;">
+    <p style="font-size:13px;color:var(--text);line-height:1.65;margin-top:16px;font-style:italic;text-align:center;padding:0 8px;font-weight:500;">
       Guess each wine's varietal and identification to earn points. 1 point for each correct varietal, 1 point for each correct identification — 24 points possible. Also rate the wines to determine which country comes out on top.
     </p>
     <div class="mt-16" id="submit-area">
@@ -600,7 +600,7 @@ window.addEventListener('DOMContentLoaded', () => {
     </select>
 
     <p class="section-label">Rating</p>
-    <p style="font-size:10px;color:var(--text-dim);margin-bottom:10px;margin-top:-6px;letter-spacing:.03em;font-style:italic;">1 for eww &nbsp;·&nbsp; 10 for ooh la la</p>
+    <p style="font-size:13px;color:var(--text);margin-bottom:12px;margin-top:-4px;font-style:italic;font-weight:500;">1 = not my wine &nbsp;·&nbsp; 10 = j'adore</p>
     <div class="rating-row" id="rating-row"></div>
 
     <p class="section-label">Tasting Notes</p>
@@ -1074,7 +1074,7 @@ function buildGrid(player, ended) {
     const tile = document.createElement('div');
     tile.className = 'wine-tile' + (done ? ' completed' : '') + (player.submitted ? ' submitted-lock' : '');
     tile.innerHTML = `
-      <div class="tile-num" style="${done ? 'color:var(--text-dim);font-size:20px;' : ''}">${i}</div>
+      <div class="tile-num" style="${done ? 'font-size:30px;' : ''}">${i}</div>
       <div class="tile-label">${done ? '' : 'Wine'}</div>
       ${done ? `<div class="check-mark" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:28px;background:rgba(58,158,95,0.12);border-radius:var(--radius);">✓</div>` : ''}
     `;
