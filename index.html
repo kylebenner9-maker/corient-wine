@@ -1640,12 +1640,18 @@ async function buildAdminInputs() {
   addBtn.onclick = addVarietalGroup;
   vgDiv.appendChild(addBtn);
 
-  // Answer key inputs — varietal comes from groups
+  // Answer key inputs — varietal comes from groups, country for scoring only
   const akDiv = document.getElementById('answer-key-inputs');
   akDiv.innerHTML = '';
+
+  // Small note above
+  const note = document.createElement('p');
+  note.style.cssText = 'font-size:10px;color:var(--text-dim);margin-bottom:12px;line-height:1.5;';
+  note.textContent = 'Country is for scoring only — players do not see or guess this.';
+  akDiv.appendChild(note);
+
   for (let i = 1; i <= 12; i++) {
     const ak  = answerKey[i] || {};
-    // Find varietal options for this wine
     const grp = varietalGroups.find(g => i >= g.from && i <= g.to) || {};
     const varOpts = [grp.varA, grp.varB].filter(Boolean);
     const varBtnsHTML = varOpts.length
@@ -1653,17 +1659,28 @@ async function buildAdminInputs() {
       : `<span style="font-size:10px;color:var(--text-dim);">Set varietal groups first</span>`;
     const opts = wineList.map(w => `<option value="${w}" ${ak.name===w?'selected':''}>${w}</option>`).join('');
     const row  = document.createElement('div');
-    row.style.cssText = 'margin-bottom:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;';
+    row.style.cssText = 'margin-bottom:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;';
     row.innerHTML = `
       <span style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--silver-dark);min-width:24px;text-align:right;">${i}</span>
       <div class="country-toggle" style="flex:0 0 auto;">${varBtnsHTML}</div>
-      <select id="ak_name_${i}" style="flex:1;min-width:140px;">
-        <option value="">— Select —</option>${opts}
+      <select id="ak_name_${i}" style="flex:1;min-width:120px;">
+        <option value="">— Wine name —</option>${opts}
       </select>
+      <div style="display:flex;gap:0;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;flex-shrink:0;">
+        <button data-ak-country-row="${i}" data-ak-country-val="France"
+          onclick="setAKCountry(${i},'France')"
+          style="padding:6px 10px;font-size:10px;font-family:'Montserrat',sans-serif;border:none;cursor:pointer;letter-spacing:.05em;transition:all .15s;background:${ak.country==='France'?'var(--sel-bg)':'var(--surface)'};color:${ak.country==='France'?'var(--sel-color)':'var(--text-dim)'};">
+          🇫🇷 FR
+        </button>
+        <button data-ak-country-row="${i}" data-ak-country-val="USA"
+          onclick="setAKCountry(${i},'USA')"
+          style="padding:6px 10px;font-size:10px;font-family:'Montserrat',sans-serif;border:none;border-left:1px solid var(--border);cursor:pointer;letter-spacing:.05em;transition:all .15s;background:${ak.country==='USA'?'var(--sel-bg)':'var(--surface)'};color:${ak.country==='USA'?'var(--sel-color)':'var(--text-dim)'};">
+          🇺🇸 US
+        </button>
+      </div>
     `;
     akDiv.appendChild(row);
   }
-}
 
 async function saveVarietalGroups() {
   const vgDiv = document.getElementById('varietal-group-inputs');
@@ -1710,6 +1727,20 @@ async function setAKVarietal(num, varietal) {
   btns.forEach(b => b.classList.toggle('selected', b.dataset.akVarietal === varietal));
 }
 window.setAKVarietal = setAKVarietal;
+
+async function setAKCountry(num, country) {
+  const ak = (await dbGet('game/answerKey/' + num)) || {};
+  ak.country = country;
+  await dbSet('game/answerKey/' + num, ak);
+  // Update button styles in place
+  const btns = document.querySelectorAll(`button[data-ak-country-row="${num}"]`);
+  btns.forEach(b => {
+    const isSelected = b.dataset.akCountryVal === country;
+    b.style.background = isSelected ? 'var(--sel-bg)' : 'var(--surface)';
+    b.style.color      = isSelected ? 'var(--sel-color)' : 'var(--text-dim)';
+  });
+}
+window.setAKCountry = setAKCountry;
 window.unsubmitPlayer = unsubmitPlayer;
 
 async function saveWineList() {
@@ -1726,6 +1757,8 @@ async function saveAnswerKey() {
     const nameEl = document.getElementById(`ak_name_${i}`);
     const existing = (await dbGet('game/answerKey/' + i)) || {};
     ak[i] = { ...existing, name: nameEl ? nameEl.value : '' };
+    // country is already saved live via setAKCountry, but preserve it here too
+    if (!ak[i].country) ak[i].country = existing.country || null;
   }
   await dbSet('game/answerKey', ak);
   showToast('Answer key saved!');
