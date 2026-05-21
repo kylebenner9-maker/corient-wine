@@ -146,15 +146,15 @@ window.addEventListener('DOMContentLoaded', () => {
   /* ── FORMS ── */
   .form-group { margin-bottom:20px; }
   label {
-    display:block; font-size:10px; font-weight:500;
+    display:block; font-size:10px; font-weight:700;
     letter-spacing:.2em; text-transform:uppercase;
-    color:var(--silver-dark); margin-bottom:8px;
+    color:var(--text); margin-bottom:8px;
   }
   input[type="text"],input[type="email"],textarea,select {
     width:100%; background:var(--surface); border:1px solid var(--border);
     border-radius:var(--radius); padding:12px 14px; color:var(--text);
-    font-family:'Montserrat',sans-serif; font-size:13px; font-weight:300;
-    letter-spacing:.03em; outline:none; transition:border-color .2s; appearance:none;
+    font-family:'Montserrat',sans-serif; font-size:14px; font-weight:500;
+    letter-spacing:.02em; outline:none; transition:border-color .2s; appearance:none;
   }
   input:focus,textarea:focus,select:focus { border-color:var(--silver-dark); }
   textarea { resize:vertical; min-height:80px; }
@@ -191,11 +191,11 @@ window.addEventListener('DOMContentLoaded', () => {
   .wine-tile.completed { border-color:#3a9e5f; border-width:2px; }
   .wine-tile.submitted-lock { opacity:.55; cursor:default; }
   .wine-tile .tile-num {
-    font-family:'Cormorant Garamond',serif; font-size:28px;
-    font-weight:300; color:var(--silver); line-height:1;
+    font-family:'Cormorant Garamond',serif; font-size:32px;
+    font-weight:600; color:var(--text); line-height:1;
   }
   .wine-tile .tile-label {
-    font-size:8px; letter-spacing:.15em; text-transform:uppercase; color:var(--text-dim);
+    font-size:9px; letter-spacing:.15em; text-transform:uppercase; color:var(--text); font-weight:500;
   }
   .wine-tile .check-mark {
     position:absolute; top:6px; right:6px; width:18px; height:18px;
@@ -208,8 +208,8 @@ window.addEventListener('DOMContentLoaded', () => {
   .country-toggle { display:flex; gap:10px; }
   .country-btn {
     flex:1; height:64px; background:var(--surface); border:1px solid var(--border);
-    border-radius:var(--radius); color:var(--text-dim); font-family:'Montserrat',sans-serif;
-    font-size:14px; font-weight:400; letter-spacing:.06em; cursor:pointer; transition:all .15s;
+    border-radius:var(--radius); color:var(--text); font-family:'Montserrat',sans-serif;
+    font-size:15px; font-weight:600; letter-spacing:.04em; cursor:pointer; transition:all .15s;
     display:flex; align-items:center; justify-content:center; gap:8px;
   }
   .country-btn.selected {
@@ -221,8 +221,8 @@ window.addEventListener('DOMContentLoaded', () => {
   .rating-row { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; }
   .rating-btn {
     width:100%; height:68px; background:var(--surface); border:1px solid var(--border);
-    border-radius:var(--radius); color:var(--text-dim); font-family:'Montserrat',sans-serif;
-    font-size:20px; font-weight:400; cursor:pointer; transition:all .15s;
+    border-radius:var(--radius); color:var(--text); font-family:'Montserrat',sans-serif;
+    font-size:22px; font-weight:600; cursor:pointer; transition:all .15s;
     display:flex; align-items:center; justify-content:center;
   }
   .rating-btn.selected {
@@ -241,8 +241,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
   /* ── SECTION LABELS ── */
   .section-label {
-    font-size:9px; font-weight:500; letter-spacing:.25em; text-transform:uppercase;
-    color:var(--text-dim); margin-bottom:10px; margin-top:24px;
+    font-size:10px; font-weight:700; letter-spacing:.2em; text-transform:uppercase;
+    color:var(--text); margin-bottom:10px; margin-top:24px;
   }
   .section-label:first-of-type { margin-top:0; }
 
@@ -256,8 +256,8 @@ window.addEventListener('DOMContentLoaded', () => {
     color:var(--silver-dark); font-size:20px; line-height:1; padding:4px 8px 4px 0;
   }
   .back-btn:hover { color:var(--silver); }
-  .wine-page-header h2 { font-family:'Cormorant Garamond',serif; font-size:24px; font-weight:300; color:var(--silver-light); }
-  .wine-page-header .wine-sub { font-size:10px; color:var(--text-dim); letter-spacing:.1em; }
+  .wine-page-header h2 { font-family:'Cormorant Garamond',serif; font-size:26px; font-weight:600; color:var(--text); }
+  .wine-page-header .wine-sub { font-size:11px; color:var(--text); letter-spacing:.05em; font-weight:500; }
 
   /* ── ADMIN ── */
   .admin-section { margin-bottom:32px; }
@@ -1556,10 +1556,29 @@ async function adminViewPlayer(id) {
     const w = wines[i]||{}; return w.varietal&&w.name&&w.rating;
   }).length;
 
+  // Compute score tally
+  const scores = computePlayerScore(player, answerKey);
+  const scoreTallyHTML = scored ? `
+    <div style="padding:14px 20px;border-top:2px solid var(--border);display:grid;grid-template-columns:repeat(3,1fr);gap:10px;background:var(--surface2);">
+      <div style="text-align:center;">
+        <div style="font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-dim);margin-bottom:4px;">Varietals</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--text);">${scores.varietalPts}<span style="font-size:14px;color:var(--text-dim);">/12</span></div>
+      </div>
+      <div style="text-align:center;border-left:1px solid var(--border);border-right:1px solid var(--border);">
+        <div style="font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-dim);margin-bottom:4px;">Wine ID</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--text);">${scores.namePts}<span style="font-size:14px;color:var(--text-dim);">/12</span></div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-dim);margin-bottom:4px;">Total Score</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:600;color:var(--text);">${scores.total}<span style="font-size:14px;color:var(--text-dim);">/24</span></div>
+      </div>
+    </div>` : '';
+
   document.getElementById('player-detail-title').textContent   = player.name;
   document.getElementById('player-detail-sub').textContent     =
     `${player.email || 'No email'} · ${doneCount}/12 wines · ${player.submitted ? 'Submitted' : 'In Progress'}`;
   document.getElementById('player-detail-rows').innerHTML      = rows;
+  document.getElementById('player-detail-score-tally').innerHTML = scoreTallyHTML;
   document.getElementById('player-detail-unsubmit').style.display = player.submitted ? 'inline-flex' : 'none';
   document.getElementById('player-detail-unsubmit').onclick    = async () => {
     if (!confirm(`Un-submit ${player.name}'s form?`)) return;
@@ -2312,7 +2331,9 @@ window.setCountry          = setCountry;
       <span style="font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-dim);text-align:right;">Done</span>
     </div>
     <!-- Rows -->
-    <div id="player-detail-rows" style="padding:0 20px;max-height:55vh;overflow-y:auto;"></div>
+    <div id="player-detail-rows" style="padding:0 20px;max-height:45vh;overflow-y:auto;"></div>
+    <!-- Score Tally -->
+    <div id="player-detail-score-tally"></div>
     <!-- Footer -->
     <div style="padding:16px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:space-between;align-items:center;">
       <button id="player-detail-delete" class="btn btn-danger" style="font-size:9px;padding:8px 16px;">🗑 Delete Player</button>
