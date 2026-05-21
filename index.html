@@ -188,7 +188,7 @@ window.addEventListener('DOMContentLoaded', () => {
     cursor:pointer; transition:all .2s; position:relative; overflow:hidden;
   }
   .wine-tile:hover { border-color:var(--silver-dark); background:var(--surface2); }
-  .wine-tile.completed { border-color:#3a9e5f; }
+  .wine-tile.completed { border-color:#3a9e5f; border-width:2px; }
   .wine-tile.submitted-lock { opacity:.55; cursor:default; }
   .wine-tile .tile-num {
     font-family:'Cormorant Garamond',serif; font-size:28px;
@@ -1070,13 +1070,13 @@ function buildGrid(player, ended) {
   grid.innerHTML = '';
   for (let i = 1; i <= 12; i++) {
     const w = (player.wines || {})[i] || {};
-    const done = !!(w.country && w.name && w.rating);
+    const done = !!(w.varietal && w.name && w.rating);
     const tile = document.createElement('div');
     tile.className = 'wine-tile' + (done ? ' completed' : '') + (player.submitted ? ' submitted-lock' : '');
     tile.innerHTML = `
-      <div class="tile-num">${i}</div>
-      <div class="tile-label">Wine</div>
-      ${done ? '<div class="check-mark">✓</div>' : ''}
+      <div class="tile-num" style="${done ? 'color:var(--text-dim);font-size:20px;' : ''}">${i}</div>
+      <div class="tile-label">${done ? '' : 'Wine'}</div>
+      ${done ? `<div class="check-mark" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:28px;background:rgba(58,158,95,0.12);border-radius:var(--radius);">✓</div>` : ''}
     `;
     if (!player.submitted && !ended) tile.onclick = () => openWine(i);
     else if (!player.submitted && ended) tile.style.cursor = 'default';
